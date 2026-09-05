@@ -159,14 +159,7 @@
       <div class="tones" id="tones" role="group" aria-label="응대 종류">
         <button class="tone" data-tone="apologize" aria-pressed="false">🙏 사과</button>
         <button class="tone" data-tone="inform" aria-pressed="false">📌 안내</button>
-        <button class="tone" data-tone="resolve" aria-pressed="false">🛠️ 처리 약속</button>
-        <button class="tone" data-tone="thanks" aria-pressed="false">💚 감사</button>
         <button class="tone" data-tone="reply" aria-pressed="true">💬 회신</button>
-      </div>
-      <label>말투</label>
-      <div class="tones" id="styles" role="group" aria-label="말투">
-        <button class="tone" data-style="formal" aria-pressed="true">🎩 정중하게</button>
-        <button class="tone" data-style="casual" aria-pressed="false">😊 친근하게</button>
       </div>
       <label style="margin-top:6px">분류 (저장 목록에 표시됩니다 · 분석 시 자동 추정되며 직접 바꿀 수 있어요)</label>
       <div class="row">
@@ -628,14 +621,6 @@ window.VocHelper = (function(){
     if($("vocInput").value.trim()) run();
   });
 
-  $("styles").addEventListener("click", function(ev){
-    var b = ev.target.closest(".tone");
-    if(!b) return;
-    currentStyle = b.dataset.style;
-    pickInGroup(this, b);
-    if($("vocInput").value.trim()) run();
-  });
-
   function renderDraftAndSummary(){
     var text = $("vocInput").value;
     var s = VocHelper.summarize(text);
@@ -833,7 +818,6 @@ window.VocHelper = (function(){
       $("receivedDate").value = rec.receivedDate || "";
       $("repliedDate").value = rec.repliedDate || "";
       if(rec.tone){ currentTone = rec.tone; pickByData($("tones"), "tone", rec.tone); }
-      if(rec.style){ currentStyle = rec.style; pickByData($("styles"), "style", rec.style); }
       $("categorySelect").value = rec.category || VocHelper.category(rec.voc);
       categoryTouched = true;
       run();
