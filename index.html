@@ -153,6 +153,10 @@
   <section id="authView" class="card">
     <h2 id="authTitle">로그인</h2>
     <div class="row">
+      <button class="ghost" id="googleLoginBtn" style="width:100%; justify-content:center; display:flex; align-items:center; gap:8px">🔵 Google로 로그인</button>
+    </div>
+    <p class="muted" style="text-align:center; margin:14px 0">또는</p>
+    <div class="row">
       <input type="text" id="authId" placeholder="아이디" autocomplete="username">
     </div>
     <div class="row">
@@ -172,6 +176,22 @@
       <button class="ghost" id="authToggleBtn">계정이 없으신가요? 회원가입</button>
     </div>
     <p id="authError" class="muted" style="color:var(--danger); min-height:1.2em"></p>
+  </section>
+
+  <!-- 최초 로그인 시 소속 부서 선택 (예: 구글 로그인 첫 이용) -->
+  <section id="deptPickView" class="card hidden-view">
+    <h2>소속 부서를 선택해주세요</h2>
+    <p class="muted" style="margin:0 0 6px">처음 로그인하셨네요. 알림을 부서별로 보내드리기 위해 필요해요.</p>
+    <div class="tones" id="deptPickGroup" role="group" aria-label="소속 부서">
+      <button class="tone" data-dept="프론트" aria-pressed="false">프론트</button>
+      <button class="tone" data-dept="예약" aria-pressed="false">예약</button>
+      <button class="tone" data-dept="캐디" aria-pressed="false">캐디</button>
+      <button class="tone" data-dept="식음" aria-pressed="false">식음</button>
+    </div>
+    <div class="row">
+      <button class="action" id="deptPickSubmitBtn">확인</button>
+    </div>
+    <p id="deptPickError" class="muted" style="color:var(--danger); min-height:1.2em"></p>
   </section>
 
   <!-- 홈 메뉴 -->
@@ -677,6 +697,7 @@ window.VocHelper = (function(){
   /* ---------- 홈 메뉴 / 화면 전환 ---------- */
   function showView(view){
     $("authView").classList.toggle("hidden-view", view !== "auth");
+    $("deptPickView").classList.toggle("hidden-view", view !== "deptpick");
     $("homeView").classList.toggle("hidden-view", view !== "home");
     $("vocView").classList.toggle("hidden-view", view !== "voc");
     $("noticeView").classList.toggle("hidden-view", view !== "notice");
@@ -717,6 +738,9 @@ window.VocHelper = (function(){
     if(code === "auth/weak-password") return "비밀번호는 6자 이상이어야 합니다.";
     if(code === "auth/invalid-email") return "아이디에 사용할 수 없는 문자가 있습니다.";
     if(code === "auth/operation-not-allowed") return "로그인 기능이 아직 설정되지 않았습니다. 관리자에게 문의하세요.";
+    if(code === "auth/unauthorized-domain") return "이 주소는 아직 Google 로그인이 허용되지 않았습니다. 관리자에게 문의하세요.";
+    if(code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return "";
+    if(code === "auth/popup-blocked") return "팝업이 차단되었습니다. 팝업 차단을 해제한 뒤 다시 시도해주세요.";
     return "오류가 발생했습니다 (" + code + ")";
   }
 
@@ -737,8 +761,34 @@ window.VocHelper = (function(){
     }
   });
 
+  $("googleLoginBtn").addEventListener("click", function(){
+    $("authError").textContent = "";
+    window.VocAuth.signInWithGoogle().catch(function(err){
+      $("authError").textContent = authErrorMessage(err);
+    });
+  });
+
   $("logoutBtn").addEventListener("click", function(){
     window.VocAuth.signOut();
+  });
+
+  var deptPickSelected = "";
+  $("deptPickGroup").addEventListener("click", function(ev){
+    var b = ev.target.closest(".tone");
+    if(!b) return;
+    Array.prototype.forEach.call(this.querySelectorAll(".tone"), function(x){ x.setAttribute("aria-pressed","false"); });
+    b.setAttribute("aria-pressed","true");
+    deptPickSelected = b.dataset.dept;
+  });
+  $("deptPickSubmitBtn").addEventListener("click", function(){
+    if(!deptPickSelected){ $("deptPickError").textContent = "소속 부서를 선택하세요."; return; }
+    window.VocAuth.setDepartment(deptPickSelected).then(function(){
+      currentUser.department = deptPickSelected;
+      $("whoAmI").textContent = currentUser.id + "님 (" + currentUser.department + ")";
+      showView("home");
+    }).catch(function(err){
+      $("deptPickError").textContent = authErrorMessage(err);
+    });
   });
 
   function startAuth(){
@@ -746,9 +796,13 @@ window.VocHelper = (function(){
       window.VocAuth.onChange(function(user){
         currentUser = user;
         if(user){
-          $("whoAmI").textContent = user.id + "님 (" + user.department + ")";
           $("authId").value = ""; $("authPw").value = "";
-          showView("home");
+          if(!user.department){
+            showView("deptpick");
+          } else {
+            $("whoAmI").textContent = user.id + "님 (" + user.department + ")";
+            showView("home");
+          }
         } else {
           showView("auth");
         }
@@ -1191,7 +1245,8 @@ window.VocHelper = (function(){
     getFirestore, collection, doc, getDoc, setDoc, deleteDoc, onSnapshot, query, orderBy, limit
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
-    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut,
+    GoogleAuthProvider, signInWithPopup
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
   var firebaseConfig = {
@@ -1220,6 +1275,15 @@ window.VocHelper = (function(){
     },
     signIn: function(id, pw){
       return signInWithEmailAndPassword(auth, idToEmail(id), pw);
+    },
+    signInWithGoogle: function(){
+      return signInWithPopup(auth, new GoogleAuthProvider());
+    },
+    setDepartment: function(department){
+      return setDoc(doc(usersCol, auth.currentUser.uid), {
+        id: auth.currentUser.email,
+        department: department
+      }, { merge: true });
     },
     signOut: function(){ return signOut(auth); },
     onChange: function(callback){
