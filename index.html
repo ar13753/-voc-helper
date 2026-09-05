@@ -719,8 +719,26 @@ window.VocHelper = (function(){
 
   var recordsCache = [];   // Firestore에서 실시간으로 채워지는 저장된 기록 목록
 
+  // 예전 버전(localStorage)에 저장돼 있던 기록을 한 번만 Firestore로 옮겨준다.
+  // 같은 id로 저장하므로 여러 번 실행돼도 중복 생성되지 않는다.
+  function migrateLocalRecords(){
+    try{
+      var raw = localStorage.getItem("vocHelper.records");
+      if(!raw) return;
+      var list = JSON.parse(raw);
+      if(!Array.isArray(list) || list.length === 0) return;
+      list.forEach(function(r){
+        var id = r.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,6));
+        var data = Object.assign({}, r);
+        delete data.id;
+        window.VocDB.save(id, data);
+      });
+    }catch(e){ /* 예전 데이터가 없거나 형식이 다르면 무시 */ }
+  }
+
   function startVocDb(){
     function attach(){
+      migrateLocalRecords();
       window.VocDB.subscribe(function(list){
         recordsCache = list;
         renderSaved();
