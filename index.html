@@ -1,0 +1,925 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOC 도우미</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3d5afe">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<!--
+  VOC 도우미 (Voice of Customer Helper)
+  ------------------------------------------------------------
+  - 인터넷 연결 없이 동작합니다. 외부 서비스/스크립트를 전혀 부르지 않습니다.
+  - 고객의 소리(VOC)를 붙여넣으면 유형 분류 · 긴급도/감정 분석 · 핵심 요약을 하고,
+    원하는 톤의 응대 초안을 만들어 줍니다. (일반 고객센터 응대 기준)
+
+  [나중에 한 사이트로 묶을 때]
+  - 화면(HTML)은 <div id="voc-helper"> ... </div> 안에만 들어 있습니다.
+  - 로직은 아래 window.VocHelper 객체 하나에 모여 있습니다.
+      VocHelper.classify(text)          -> 유형/긴급도/감정 (객체)
+      VocHelper.summarize(text)         -> 요약 결과(객체)
+      VocHelper.draft(text, tone, opt)  -> 응대 초안(문자열)
+    이 함수들만 가져가면 다른 페이지/도구에서도 그대로 재사용할 수 있습니다.
+-->
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --ink:#1c2230; --muted:#69707f;
+    --line:#e4e7ec; --brand:#3d5afe; --brand-ink:#ffffff;
+    --chip:#eef1f6; --ok:#0f9d58; --soft:#f0f2f6;
+    --warn:#e8830c; --danger:#e5484d;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#12141a; --card:#1b1f28; --ink:#e9ecf2; --muted:#9aa2b1;
+      --line:#2a2f3a; --brand:#7c8cff; --brand-ink:#0e1016;
+      --chip:#252a35; --ok:#48c78e; --soft:#20242e;
+      --warn:#f0a44a; --danger:#ff6369;
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic",system-ui,-apple-system,sans-serif;
+    line-height:1.55;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:24px 18px 60px}
+  header h1{font-size:1.5rem; margin:0 0 4px}
+  header p{margin:0 0 20px; color:var(--muted); font-size:.95rem}
+  .grid{display:grid; gap:16px; grid-template-columns:1fr 1fr}
+  @media (max-width:760px){ .grid{grid-template-columns:1fr} }
+  .card{
+    background:var(--card); border:1px solid var(--line);
+    border-radius:14px; padding:16px;
+  }
+  .card h2{font-size:1rem; margin:0 0 10px; display:flex; align-items:center; gap:8px}
+  label{display:block; font-size:.85rem; color:var(--muted); margin:0 0 6px}
+  textarea{
+    width:100%; min-height:220px; resize:vertical; padding:12px;
+    border:1px solid var(--line); border-radius:10px; background:var(--soft);
+    color:var(--ink); font:inherit;
+  }
+  .row{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px}
+  input[type=text], input[type=date], select{
+    flex:1; min-width:120px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:9px; background:var(--soft); color:var(--ink); font:inherit;
+  }
+  .tones{display:flex; gap:8px; flex-wrap:wrap; margin:14px 0}
+  .tone{
+    flex:1 1 auto; padding:9px 12px; border:1px solid var(--line);
+    border-radius:999px; background:var(--chip); color:var(--ink);
+    cursor:pointer; font:inherit; text-align:center; transition:.15s;
+  }
+  .tone[aria-pressed="true"]{ background:var(--brand); color:var(--brand-ink); border-color:var(--brand) }
+  button.action{
+    padding:11px 16px; border:0; border-radius:10px; background:var(--brand);
+    color:var(--brand-ink); font:inherit; font-weight:600; cursor:pointer;
+  }
+  button.ghost{
+    padding:9px 13px; border:1px solid var(--line); border-radius:10px;
+    background:transparent; color:var(--ink); cursor:pointer; font:inherit;
+  }
+  .summary ul{margin:6px 0 0; padding-left:18px}
+  .summary li{margin:4px 0}
+  .tag{
+    display:inline-block; font-size:.72rem; padding:2px 8px; border-radius:999px;
+    background:var(--chip); color:var(--muted); margin:0 6px 6px 0;
+  }
+  /* 분석 배지 */
+  .badges{display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 4px}
+  .badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:.78rem;
+    padding:4px 10px; border-radius:999px; border:1px solid var(--line);
+    background:var(--soft); font-weight:600;
+  }
+  .badge.type{ border-color:var(--brand); color:var(--brand) }
+  .badge.lv-high{ border-color:var(--danger); color:var(--danger) }
+  .badge.lv-mid{ border-color:var(--warn); color:var(--warn) }
+  .badge.lv-low{ border-color:var(--ok); color:var(--ok) }
+  .out{
+    white-space:pre-wrap; background:var(--soft); border:1px dashed var(--line);
+    border-radius:10px; padding:12px; min-height:320px; margin-top:6px;
+    width:100%; resize:vertical; color:var(--ink); font:inherit; display:block;
+    overflow-y:hidden;
+  }
+  .out:focus{ outline:2px solid var(--brand); outline-offset:1px; border-style:solid }
+  .muted{color:var(--muted); font-size:.85rem}
+  .copied{color:var(--ok); font-weight:600; font-size:.85rem}
+  /* 저장 목록 */
+  .saved-list{display:flex; flex-direction:column; gap:10px; margin:6px 0 12px}
+  .saved-item{
+    border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    background:var(--soft);
+  }
+  .saved-item .head{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px}
+  .saved-item .when{font-size:.75rem; color:var(--muted); margin-left:auto}
+  .saved-item .peek{
+    font-size:.85rem; color:var(--muted); margin:2px 0 8px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .saved-item .acts{display:flex; gap:8px; flex-wrap:wrap}
+  .saved-item button{
+    padding:6px 11px; font-size:.82rem; border:1px solid var(--line);
+    border-radius:8px; background:var(--card); color:var(--ink); cursor:pointer; font:inherit;
+  }
+  .saved-item button.del{ color:var(--danger); border-color:var(--danger) }
+  footer{margin-top:22px; text-align:center; color:var(--muted); font-size:.8rem}
+</style>
+</head>
+<body>
+<div id="voc-helper" class="wrap">
+  <header>
+    <h1>🗣️ VOC 도우미</h1>
+    <p>고객의 소리(VOC)를 붙여넣으면 유형과 긴급도를 분석해 짧게 요약하고, 원하는 톤의 응대 초안을 만들어 드립니다. (인터넷 연결 없이 동작)</p>
+  </header>
+
+  <div class="grid">
+    <!-- 입력 -->
+    <section class="card">
+      <h2>1. 고객의 소리(VOC) 붙여넣기</h2>
+      <label for="vocInput">접수된 문의/불만 전체 내용을 붙여넣으세요</label>
+      <textarea id="vocInput" placeholder="예) 어제 주문한 상품(주문번호 12345)이 아직도 배송이 안 됐어요. 오늘까지 꼭 필요한데 언제 오는지 빨리 알려주세요. 정말 실망입니다..."></textarea>
+      <div class="row">
+        <input type="text" id="customerName" placeholder="고객이름 (예: 홍길동)">
+        <input type="text" id="customerPhone" placeholder="전화번호 (예: 010-1234-5678)">
+      </div>
+      <label style="margin-top:6px">타임라인</label>
+      <div class="row">
+        <div style="flex:1; min-width:140px">
+          <label style="margin:0 0 4px; font-size:.8rem">VOC 접수일</label>
+          <input type="date" id="receivedDate" style="width:100%">
+        </div>
+        <div style="flex:1; min-width:140px">
+          <label style="margin:0 0 4px; font-size:.8rem">회신일</label>
+          <input type="date" id="repliedDate" style="width:100%">
+        </div>
+      </div>
+      <label style="margin-top:6px">응대 종류</label>
+      <div class="tones" id="tones" role="group" aria-label="응대 종류">
+        <button class="tone" data-tone="apologize" aria-pressed="false">🙏 사과</button>
+        <button class="tone" data-tone="inform" aria-pressed="false">📌 안내</button>
+        <button class="tone" data-tone="resolve" aria-pressed="false">🛠️ 처리 약속</button>
+        <button class="tone" data-tone="thanks" aria-pressed="false">💚 감사</button>
+        <button class="tone" data-tone="reply" aria-pressed="true">💬 회신</button>
+      </div>
+      <label>말투</label>
+      <div class="tones" id="styles" role="group" aria-label="말투">
+        <button class="tone" data-style="formal" aria-pressed="true">🎩 정중하게</button>
+        <button class="tone" data-style="casual" aria-pressed="false">😊 친근하게</button>
+      </div>
+      <label style="margin-top:6px">분류 (저장 목록에 표시됩니다 · 분석 시 자동 추정되며 직접 바꿀 수 있어요)</label>
+      <div class="row">
+        <select id="categorySelect">
+          <option value="코스_안전">코스_안전</option>
+          <option value="코스_해충">코스_해충</option>
+          <option value="코스_소음">코스_소음</option>
+          <option value="코스_그린관리">코스_그린관리</option>
+          <option value="코스_지연">코스_지연</option>
+          <option value="카트_고장">카트_고장</option>
+          <option value="캐디_태도">캐디_태도</option>
+          <option value="프론트_예약">프론트_예약</option>
+          <option value="요금_결제">요금_결제</option>
+          <option value="회원권_부킹">회원권_부킹</option>
+          <option value="프로샵">프로샵</option>
+          <option value="라커룸_편의시설">라커룸_편의시설</option>
+          <option value="식음료_위생">식음료_위생</option>
+          <option value="온라인_예약시스템">온라인_예약시스템</option>
+          <option value="날씨_휴장">날씨_휴장</option>
+          <option value="분실물">분실물</option>
+          <option value="주차장">주차장</option>
+          <option value="직원응대">직원응대</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <label style="margin-top:6px">사과 문구 (선택 · Claude에게 다듬어 받은 문구가 있으면 붙여넣으세요, 비우면 VOC 원문에서 자동 추출)</label>
+      <div class="row">
+        <input type="text" id="issueTextInput" placeholder="예) 코스 관리 작업 중 직원의 응대">
+      </div>
+      <div class="row">
+        <button class="action" id="runBtn">분석 + 초안 만들기</button>
+        <button class="ghost" id="clearBtn">지우기</button>
+      </div>
+    </section>
+
+    <!-- 결과 -->
+    <section class="card">
+      <h2>2. 분석 결과</h2>
+      <div class="badges" id="badgeOut">
+        <span class="muted">유형 · 긴급도 · 감정이 여기에 표시됩니다.</span>
+      </div>
+      <div class="summary" id="summaryOut">
+        <p class="muted">여기에 핵심 요약이 표시됩니다.</p>
+      </div>
+
+      <h2 style="margin-top:18px">3. 응대 초안 <span id="toneLabel" class="tag">회신</span> <span class="muted" style="font-weight:400">(자유롭게 수정 가능)</span></h2>
+      <textarea class="out" id="draftOut" placeholder="여기에 응대 초안이 표시됩니다."></textarea>
+      <div class="row">
+        <button class="ghost" id="copyBtn">📋 초안 복사</button>
+        <button class="action" id="saveBtn">💾 저장</button>
+        <button class="ghost" id="downloadBtn">⬇️ 파일로 저장</button>
+        <span id="copyMsg"></span>
+      </div>
+    </section>
+  </div>
+
+  <!-- 저장된 기록 -->
+  <section class="card" style="margin-top:16px">
+    <h2>4. 저장된 기록 <span id="savedCount" class="tag">0건</span></h2>
+    <p class="muted" style="margin:0 0 6px">저장한 VOC와 회신 초안이 이 브라우저에 보관됩니다. (외부로 전송되지 않음)</p>
+    <label style="margin-top:6px">내보낼 기간 (VOC 접수일 기준 · 비워두면 전체)</label>
+    <div class="row">
+      <input type="date" id="exportFrom" style="flex:1; min-width:140px">
+      <span class="muted" style="align-self:center">~</span>
+      <input type="date" id="exportTo" style="flex:1; min-width:140px">
+    </div>
+    <div class="row">
+      <button class="action" id="exportBtn">📊 엑셀로 내보내기</button>
+      <button class="ghost" id="clearAllBtn">🗑️ 전체 삭제</button>
+    </div>
+    <div id="savedList" class="saved-list" style="margin-top:12px">
+      <p class="muted">아직 저장된 기록이 없습니다.</p>
+    </div>
+  </section>
+
+  <footer>규칙 기반 · 오프라인 · 입력한 내용은 이 컴퓨터를 벗어나지 않습니다.</footer>
+</div>
+
+<script>
+/* =========================================================================
+   VocHelper : 순수 로직 (화면과 분리). 다른 사이트에서 재사용 가능.
+   ========================================================================= */
+window.VocHelper = (function(){
+
+  var TONE_NAME = { apologize:"사과", inform:"안내", resolve:"처리 약속", thanks:"감사", reply:"회신" };
+  var TYPE_NAME = { complaint:"불만", inquiry:"문의", suggestion:"제안", praise:"칭찬" };
+  var TYPE_ICON = { complaint:"😠", inquiry:"❓", suggestion:"💡", praise:"👏" };
+
+  function clean(t){ return (t||"").replace(/\r/g,"").trim(); }
+
+  function sentences(t){
+    return clean(t)
+      .split(/(?<=[.!?。！？])\s+|\n+/)
+      .map(function(s){ return s.trim(); })
+      .filter(Boolean);
+  }
+
+  // 주문번호/티켓번호 등 식별번호 추출
+  function refNumbers(t){
+    var out = [];
+    var re = /(주문|접수|티켓|송장|운송장|고객)\s*(?:번호|no\.?|#)?\s*[:：]?\s*([0-9]{4,})/gi;
+    var m;
+    while((m = re.exec(t))){ out.push(m[1] + " " + m[2]); }
+    return Array.from(new Set(out)).slice(0,4);
+  }
+
+  // 유형 분류 + 긴급도 + 감정
+  function classify(t){
+    t = clean(t);
+    var complaint = /(불만|불편|화가|짜증|실망|최악|엉망|황당|어이|항의|안 ?됨|안 ?돼|안 ?와|안 ?옴|고장|불량|하자|파손|누락|오배송|잘못|환불|취소|보상|사과|따지|다신|두 ?번 ?다시)/g;
+    var inquiry   = /(문의|궁금|어떻게|언제|얼마|가능한가|되나요|인가요|어디서|무엇|뭔가요|알려주|확인 ?부탁|방법)/g;
+    var suggest   = /(제안|건의|개선|추가(?:됐|되었|해|하면)|있었으면|바랍니다|해주셨으면|반영|아이디어|요청드립니다)/g;
+    var praise    = /(감사|고맙|좋았|좋아요|만족|최고|훌륭|친절|빠르|덕분|잘 ?써|칭찬)/g;
+
+    var score = {
+      complaint: (t.match(complaint)||[]).length,
+      inquiry:   (t.match(inquiry)||[]).length,
+      suggestion:(t.match(suggest)||[]).length,
+      praise:    (t.match(praise)||[]).length
+    };
+    // 물음표는 문의 가점
+    score.inquiry += (t.match(/[?？]/g)||[]).length;
+
+    var type = "inquiry", best = -1;
+    ["complaint","praise","suggestion","inquiry"].forEach(function(k){
+      if(score[k] > best){ best = score[k]; type = k; }
+    });
+    if(best === 0) type = (t.match(/[?？]/)) ? "inquiry" : "complaint";
+
+    // 긴급도
+    var urgentHits = (t.match(/(당장|즉시|빨리|급해|급히|시급|오늘|지금 ?바로|언제까지|기한|마감|환불|취소|손해|피해|법적|소비자원|신고)/g)||[]).length;
+    var strongNeg  = (t.match(/(최악|화가|짜증|다신|두 ?번 ?다시|실망|어이|황당|열받|짜증나)/g)||[]).length;
+    var level = "low";
+    if(type === "complaint" && (urgentHits >= 1 || strongNeg >= 2)) level = "high";
+    else if(urgentHits >= 1 || strongNeg >= 1 || type === "complaint") level = "mid";
+
+    // 감정
+    var sentiment = "중립";
+    if(type === "praise") sentiment = "긍정";
+    else if(strongNeg >= 2 || (type === "complaint" && level === "high")) sentiment = "강한 불만";
+    else if(type === "complaint" || strongNeg >= 1) sentiment = "부정";
+
+    return {
+      type: type, typeName: TYPE_NAME[type], typeIcon: TYPE_ICON[type],
+      level: level, sentiment: sentiment, score: score
+    };
+  }
+
+  // 핵심 항목 추출
+  function extract(t){
+    var lines = sentences(t);
+    var questions = [], requests = [], dates = [];
+
+    var reqWords = /(부탁|요청|바랍니다|주세요|해주|가능(할|하신|한가)|될까요|확인|회신|답장|검토|첨부|환불|교환|취소|조치|처리)/;
+    var dateRe = /(\d{1,2}\s*월\s*\d{1,2}\s*일|\d{1,2}\/\d{1,2}|(?:월|화|수|목|금|토|일)요일|오전|오후|\d{1,2}\s*시|내일|모레|다음\s*주|이번\s*주|금일|명일|어제|오늘)/g;
+
+    lines.forEach(function(s){
+      if(/[?？]/.test(s) || /(궁금|문의|인지요|나요\b|까요)/.test(s)) questions.push(s);
+      else if(reqWords.test(s)) requests.push(s);
+      var d = s.match(dateRe);
+      if(d) dates = dates.concat(d);
+    });
+
+    dates = Array.from(new Set(dates));
+    return {
+      refs: refNumbers(t),
+      first: lines.slice(0,2).join(" "),
+      questions: questions.slice(0,4),
+      requests: requests.slice(0,4),
+      dates: dates.slice(0,6),
+      lineCount: lines.length
+    };
+  }
+
+  // 저장 목록 분류: 고정된 카테고리 중 하나를 자동 추정 (사용자가 직접 바꿀 수도 있음)
+  var CATEGORIES = [
+    "코스_안전","코스_해충","코스_소음","코스_그린관리","코스_지연",
+    "카트_고장","캐디_태도",
+    "프론트_예약","요금_결제","회원권_부킹","프로샵",
+    "라커룸_편의시설","식음료_위생","온라인_예약시스템","날씨_휴장",
+    "분실물","주차장","직원응대","기타"
+  ];
+  var CATEGORY_RULES = [
+    { re:/안전|사고|다칠|다쳤|위험|충돌|넘어지|부상/, cat:"코스_안전" },
+    { re:/벌레|모기|벌|해충|물림|물렸/, cat:"코스_해충" },
+    { re:/소음|시끄/, cat:"코스_소음" },
+    { re:/요금|가격|그린피|카트비|캐디피|바가지|비싸|환불|결제|영수증/, cat:"요금_결제" },
+    { re:/그린|페어웨이|벙커|러프|스프링클러|물\s*뿌리|잔디|코스\s*관리|작업\s*차량|디봇/, cat:"코스_그린관리" },
+    { re:/지연|늦|밀림|정체|기다/, cat:"코스_지연" },
+    { re:/카트/, cat:"카트_고장" },
+    { re:/캐디/, cat:"캐디_태도" },
+    { re:/홈페이지|앱|어플|키오스크|예약\s*시스템|전산\s*오류/, cat:"온라인_예약시스템" },
+    { re:/프론트|체크인|접수|예약|노쇼/, cat:"프론트_예약" },
+    { re:/회원권|멤버십|부킹권|정회원/, cat:"회원권_부킹" },
+    { re:/프로샵|골프화|골프용품/, cat:"프로샵" },
+    { re:/라커|락커|탈의실|샤워|사우나|찜질방|화장실/, cat:"라커룸_편의시설" },
+    { re:/식당|그늘집|레스토랑|음식|메뉴|뷔페/, cat:"식음료_위생" },
+    { re:/우천|폭염|낙뢰|천재지변|휴장|기상/, cat:"날씨_휴장" },
+    { re:/분실|도난|잃어버/, cat:"분실물" },
+    { re:/주차/, cat:"주차장" },
+    { re:/직원|불친절|응대|태도|마샬|매니저/, cat:"직원응대" }
+  ];
+  function guessCategory(t){
+    t = clean(t);
+    if(!t) return "기타";
+    for(var i=0;i<CATEGORY_RULES.length;i++){
+      if(CATEGORY_RULES[i].re.test(t)) return CATEGORY_RULES[i].cat;
+    }
+    return "기타";
+  }
+
+  // VOC 원문을 응대 초안에 그대로 붙여넣는 대신, 핵심 이슈를 짧은 키워드로 요약
+  // 예) "공사좀 하지말아주세요. 시끄럽고 정신이없어요" -> "기계소음"
+  var ISSUE_KEYWORD_RULES = [
+    { re:/(?=[\s\S]*(화이트티|블루티|레귤러티|블랙티|티\s*박스|코스\s*난이도))(?=[\s\S]*(양식|조식))/, phrase:"티박스난이도_조식양식확대" },
+    { re:/드라이기[\s\S]*(고장|안\s*됨|안\s*돼|먹통)|(고장|안\s*됨|안\s*돼|먹통)[\s\S]*드라이기/, phrase:"파우더룸 드라이기 고장" },
+    { re:/(안전|사고|다칠|다쳤|위험|충돌|넘어지|부상)/, phrase:"안전 문제" },
+    { re:/(벌레|모기|벌|해충|물림|물렸)/, phrase:"해충 피해" },
+    { re:/(소음|시끄러|시끄럽).*(공사|작업|기계|장비|스프링클러)|(공사|작업|기계|장비).*(소음|시끄러|시끄럽)/, phrase:"기계소음" },
+    { re:/(소음|시끄러|시끄럽)/, phrase:"소음" },
+    { re:/(요금|가격|그린피|카트비|캐디피|바가지|비싸)/, phrase:"요금 문의" },
+    { re:/(환불|결제|영수증)/, phrase:"환불/결제 문의" },
+    { re:/(그린|페어웨이|벙커|러프|스프링클러|물\s*뿌리|잔디|코스\s*관리|작업\s*차량|디봇)/, phrase:"코스 관리" },
+    { re:/(지연|늦|밀림|정체|기다)/, phrase:"진행 지연" },
+    { re:/카트/, phrase:"카트 고장" },
+    { re:/캐디/, phrase:"캐디 응대" },
+    { re:/노쇼/, phrase:"예약 노쇼" },
+    { re:/(홈페이지|앱|어플|키오스크|예약\s*시스템|전산\s*오류)/, phrase:"예약 시스템 오류" },
+    { re:/(프론트|체크인|접수|예약)/, phrase:"프론트 응대" },
+    { re:/(회원권|멤버십|부킹권|정회원)/, phrase:"회원권 문의" },
+    { re:/(프로샵|골프화|골프용품)/, phrase:"프로샵 이용" },
+    { re:/(라커|락커|탈의실|샤워|사우나|찜질방|화장실)/, phrase:"라커룸 청결" },
+    { re:/(뷔페|메뉴|간식|음식|반찬|순대).*(추가|리필|더\s*주|많이\s*주|넉넉)|(추가|리필|더\s*주|많이\s*주|넉넉).*(뷔페|메뉴|간식|음식|반찬|순대)|매운\s*고추|고추\s*추가/, phrase:"뷔페 음식 추가 요청" },
+    { re:/(식당|그늘집|레스토랑|음식|메뉴|뷔페)/, phrase:"식음료 위생" },
+    { re:/(우천|폭염|낙뢰|천재지변|휴장|기상)/, phrase:"기상 악화로 인한 휴장" },
+    { re:/(분실|도난|잃어버)/, phrase:"분실물" },
+    { re:/주차/, phrase:"주차장" },
+    { re:/(직원|불친절|응대|태도)/, phrase:"직원 응대" }
+  ];
+  function guessIssueKeyword(t){
+    t = clean(t);
+    if(!t) return "";
+    for(var i=0;i<ISSUE_KEYWORD_RULES.length;i++){
+      if(ISSUE_KEYWORD_RULES[i].re.test(t)) return ISSUE_KEYWORD_RULES[i].phrase;
+    }
+    return "";
+  }
+
+  function summarize(t){
+    t = clean(t);
+    if(!t) return null;
+    var e = extract(t);
+    var c = classify(t);
+    var bullets = [];
+    if(e.first) bullets.push("핵심: " + trim(e.first, 90));
+    if(e.refs.length) bullets.push("식별번호: " + e.refs.join(", "));
+    e.requests.forEach(function(r){ bullets.push("요청/처리 사항: " + trim(r, 80)); });
+    e.questions.forEach(function(q){ bullets.push("질문: " + trim(q, 80)); });
+    if(e.dates.length) bullets.push("날짜/시간: " + e.dates.join(", "));
+    if(bullets.length === 0) bullets.push("특별한 요청이나 질문은 감지되지 않았습니다.");
+    return { bullets:bullets, meta:e, analysis:c };
+  }
+
+  function trim(s, n){ s = s.replace(/\s+/g," ").trim(); return s.length>n ? s.slice(0,n-1)+"…" : s; }
+
+  // 받침 유무에 따라 "로"/"으로" 조사를 자동 선택 (받침 없음 또는 'ㄹ' 받침 -> 로)
+  function josaRo(w){
+    var last = (w||"").trim().slice(-1);
+    var code = last.charCodeAt(0) - 0xAC00;
+    if(code < 0 || code > 11171) return "로";
+    var jong = code % 28;
+    return (jong === 0 || jong === 8) ? "로" : "으로";
+  }
+
+  // 뷔페 음식 추가 요청(예: 매운 고추) 전용 사과 템플릿
+  function buffetAddTemplate(customerName){
+    var greet = customerName ? customerName + " 고객님" : "고객님";
+    return "[푸른솔 GC] 소중한 의견에 감사드립니다.\n\n"
+      + "안녕하십니까, " + greet + ".\n\n"
+      + "푸른솔 GC 서비스 컨시어지팀입니다.\n\n"
+      + "식음 뷔페 메뉴와 관련해 전해주신 소중한 의견 감사드립니다.\n\n"
+      + "(고객님이 원하시는 내용) 레스토랑 이용 시 직원에게 편하게 말씀해 주시면 정성껏 준비해 드리겠습니다.\n\n"
+      + "앞으로도 세심한 서비스로 보답하는 푸른솔 GC가 되겠습니다.\n\n"
+      + "감사합니다.\n\n"
+      + "푸른솔 GC 서비스 컨시어지 드림";
+  }
+
+  // 코스 기계/장비 소음 전용 사과 템플릿
+  function machineNoiseTemplate(){
+    return "[푸른솔 GC] 안녕하십니까, 푸른솔 골프장 서비스 컨시어지팀입니다.\n\n"
+      + "저희 푸른솔 GC의 발전을 위해 소중한 의견을 전해주셔서 깊이 감사드립니다.\n\n"
+      + "라운드 중 코스 작업차량으로 인해 플레이에 영향을 드려 진심 어린 사과의 말씀드립니다.\n\n"
+      + "또한 작업으로 인한 불가피한 상황에서도 고객님에 대한 배려가 부족했던 점 다시 한번 사과드리며,\n"
+      + "추후 내장 시에는 더욱 쾌적하게 이용하실 수 있도록 최선을 다하겠습니다.\n\n"
+      + "앞으로도 고객님의 작은 목소리 하나도 놓치지 않고 귀 기울이는 푸른솔 GC가 되겠습니다.\n\n"
+      + "감사합니다.";
+  }
+
+  // 코스(화이트티) 난이도 + 조식 양식메뉴 확대 요청 전용 안내 템플릿
+  function teeAndBreakfastTemplate(){
+    return "[푸른솔 GC] 안녕하십니까, 푸른솔 골프장 서비스 컨시어지팀입니다.\n\n"
+      + "저희 푸른솔 GC를 찾아주시고 뜻깊은 의견을 남겨주셔서 진심으로 감사드립니다.\n\n"
+      + "말씀해 주신 화이트티 위치 및 난이도 조절에 대한 의견은 라운드의 만족도를 높일 수 있도록 경기 부서와 긴밀히 협의하여 코스 세팅에 참고하겠습니다.\n\n"
+      + "아울러 조식 양식 메뉴 확대 요청 역시 식음 부서와 공유하여, 향후 메뉴 구성 시 고객님의 선호를 반영할 수 있도록 적극 검토하겠습니다.\n\n"
+      + "늘 고객님의 의견을 바탕으로 한 단계 더 발전하는 푸른솔 GC가 되겠습니다. 다음 라운드에서도 더욱 편안하고 즐거운 시간 보내실 수 있도록 정성을 다해 모시겠습니다.\n\n"
+      + "감사합니다.\n\n"
+      + "서비스 컨시어지팀 드림";
+  }
+
+  // 파우더룸 드라이기 고장 전용 처리약속 템플릿
+  function powderRoomDryerTemplate(){
+    return "[푸른솔 GC] 안녕하십니까, 푸른솔 골프장 서비스 컨시어지팀입니다.\n\n"
+      + "소중한 후기와 함께 시설 제보를 남겨주셔서 깊이 감사드립니다.\n\n"
+      + "말씀해 주신 파우더룸 드라이기는 즉시 점검 후 교체 조치를 완료하였습니다.\n\n"
+      + "앞으로도 시설과 서비스를 세심히 살펴 늘 쾌적한 라운드를 전하겠습니다. \n"
+      + "감사합니다.\n\n"
+      + "서비스 컨시어지 담당자 드림";
+  }
+
+  // 회신(💬) 공통 틀 + 유형별 4종 본문
+  var REPLY_TYPE_BODY = {
+    complaint:  "이용 중 아쉬움을 드린 점 양해 부탁드리며, 신속히 확인 및 보완하여 편안하게 이용하실 수 있도록 개선하겠습니다.",
+    facility:   "세심하게 알려주신 덕분에 해당 시설의 점검 및 조치를 신속히 완료하였으며, 전 시설 관리를 한층 더 강화하겠습니다.",
+    suggestion: "전해주신 귀한 제안은 담당 부서와 공유하였으며, 향후 서비스 개선 시 적극 검토하여 반영하도록 하겠습니다.",
+    praise:     "저희 서비스에 만족하시고 따뜻한 격려를 보내주셔서 감사드리며, 전 직원과 공유하여 품격 있는 서비스를 이어가겠습니다."
+  };
+  var FACILITY_ISSUE_RE = /(고장|파손|작동\s*안|안\s*됨|안\s*돼|먹통|정비|불량|누수)/;
+  function commonFrameReply(bodyText){
+    return "[푸른솔 GC] 안녕하십니까, 푸른솔 골프장 서비스 컨시어지팀입니다.\n\n"
+      + "저희 푸른솔 GC에 소중한 의견을 전해주셔서 깊이 감사드립니다.\n\n"
+      + bodyText + "\n\n"
+      + "소중한 의견 귀담아듣고 다음 내장 시 더 나은 서비스로 정성껏 모시겠습니다.\n\n"
+      + "감사합니다.\n\n"
+      + "서비스 컨시어지 담당자 올림";
+  }
+  function pickReplyBodyKey(t, c){
+    if(c.type === "praise") return "praise";
+    if(c.type === "suggestion") return "suggestion";
+    if(FACILITY_ISSUE_RE.test(t) && c.type === "complaint") return "facility";
+    return "complaint";
+  }
+
+  // 응대 초안 (opt.style: "formal" 정중 | "casual" 친근)
+  function draft(t, tone, opt){
+    opt = opt || {};
+    var casual = opt.style === "casual";
+    var e = extract(clean(t));
+    var customerName = (opt.customerName || "").trim();
+
+    if(tone === "inform" && !(opt.issueText && opt.issueText.trim())
+      && guessIssueKeyword(clean(t)) === "뷔페 음식 추가 요청"){
+      return buffetAddTemplate(customerName);
+    }
+    if(tone === "apologize" && !(opt.issueText && opt.issueText.trim())
+      && guessIssueKeyword(clean(t)) === "기계소음"){
+      return machineNoiseTemplate();
+    }
+    if(tone === "inform" && !(opt.issueText && opt.issueText.trim())
+      && guessIssueKeyword(clean(t)) === "티박스난이도_조식양식확대"){
+      return teeAndBreakfastTemplate();
+    }
+    if(tone === "resolve" && !(opt.issueText && opt.issueText.trim())
+      && guessIssueKeyword(clean(t)) === "파우더룸 드라이기 고장"){
+      return powderRoomDryerTemplate();
+    }
+    if(tone === "reply" && !(opt.issueText && opt.issueText.trim())){
+      var cleanT = clean(t);
+      var replyBodyKey = pickReplyBodyKey(cleanT, classify(cleanT));
+      return commonFrameReply(REPLY_TYPE_BODY[replyBodyKey]);
+    }
+
+    var hi = casual
+      ? "고객님, 안녕하세요!"
+      : "[푸른솔 GC] 안녕하십니까, 푸른솔 골프장 서비스 컨시어지팀입니다.";
+    var org = "";
+    var refTxt = e.refs.length ? "말씀해주신 " + e.refs.slice(0,2).join(", ") + " 건" : "문의주신 내용";
+    var issueTxt = (opt.issueText && opt.issueText.trim())
+      ? opt.issueText.trim()
+      : (guessIssueKeyword(clean(t)) || (e.first ? trim(e.first, 80) : "말씀해주신 내용"));
+
+    var body;
+    switch(tone){
+      case "apologize":
+        body = casual
+          ? "먼저 불편을 드려서 정말 죄송해요.\n" + refTxt + " 관련해 겪으신 불편, 충분히 이해돼요."
+            + "\n바로 확인해서 최대한 빠르게 처리할게요. 다시는 이런 일이 없도록 신경 쓸게요."
+          : "저희 푸른솔 GC의 발전을 위해 소중한 의견을 전해주셔서 깊이 감사드립니다."
+            + "\n\n" + issueTxt + josaRo(issueTxt) + " 불편을 드려 사과의 말씀을 드립니다. 또한 불가피한 상황에서도 고객님에 대한 배려가 부족했던 점 다시 한번 사과드리며, 추후 내장 시에는 더욱 쾌적하게 이용하실 수 있도록 최선을 다하겠습니다."
+            + "\n\n앞으로도 고객님의 작은 목소리 하나도 놓치지 않고 귀 기울이는 푸른솔 GC가 되겠습니다.";
+        break;
+      case "inform":
+        body = casual
+          ? refTxt + " 관련해 안내드릴게요.\n(여기에 확인된 사실/처리 현황을 적어주세요.)"
+            + (e.questions.length ? "\n문의주신 부분은 아래와 같아요:" : "")
+          : refTxt + "에 대해 안내드립니다.\n(여기에 확인된 사실/처리 현황을 기재해 주세요.)"
+            + (e.questions.length ? "\n문의주신 사항은 아래와 같습니다:" : "");
+        if(e.questions.length){
+          e.questions.forEach(function(q){ body += "\n- " + trim(q,70) + " → (답변 기재)"; });
+        }
+        break;
+      case "resolve":
+        body = casual
+          ? refTxt + " 확인했어요.\n말씀하신 부분 바로 처리 진행할게요."
+            + (e.dates.length ? "\n" + e.dates.slice(0,2).join(", ") + " 기준으로 챙겨서 안내드릴게요." : "\n처리되는 대로 다시 안내드릴게요.")
+            + "\n조금만 기다려 주세요. 감사합니다!"
+          : refTxt + " 확인하였습니다.\n요청하신 사항에 대해 즉시 처리 진행하겠습니다."
+            + (e.dates.length ? "\n" + e.dates.slice(0,2).join(", ") + " 기준으로 확인하여 결과를 안내드리겠습니다." : "\n처리 완료되는 대로 다시 안내드리겠습니다.")
+            + "\n조금만 기다려 주시면 감사하겠습니다.";
+        break;
+      case "thanks":
+        body = casual
+          ? "소중한 의견 남겨주셔서 정말 고마워요!\n" + refTxt + " 잘 전달받았어요."
+            + "\n남겨주신 말씀은 담당 부서에 공유해서 더 좋은 서비스로 보답할게요."
+          : "먼저 저희 푸른솔 GC에 아낌없는 애정과 소중한 의견을 보내주셔서 깊이 감사드립니다.\n\n(문의주신 내용)\n말씀해 주신 내용을 바탕으로 부족함 없이 서비스를 누리실 수 있도록 세심하게 관리하겠습니다.";
+        break;
+    }
+
+    var close = casual
+      ? "감사합니다!\n(담당자)"
+      : "감사합니다.\n서비스컨시어지 담당자드림";
+    return hi + (org ? " " + org : "") + "\n\n" + body + "\n\n" + close;
+  }
+
+  return { classify:classify, summarize:summarize, draft:draft, category:guessCategory, issueKeyword:guessIssueKeyword, CATEGORIES:CATEGORIES, TONE_NAME:TONE_NAME, TYPE_NAME:TYPE_NAME };
+})();
+
+/* =========================================================================
+   화면 연결 (이 부분만 다른 페이지에 맞게 바꾸면 됩니다)
+   ========================================================================= */
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var currentTone = "reply";
+  var currentStyle = "formal";
+  var lastAnalysis = null;               // 마지막 분석 결과(저장용)
+  var STORE_KEY = "vocHelper.records";   // localStorage 키
+  var categoryTouched = false;           // 사용자가 분류를 직접 바꿨는지 여부
+
+  var LEVEL_TXT = { high:"🚨 긴급 높음", mid:"⚠️ 보통", low:"✅ 낮음" };
+
+  function todayStr(){
+    var d = new Date();
+    function p(n){ return (n<10?"0":"") + n; }
+    return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
+  }
+  $("receivedDate").value = todayStr();
+
+  // 한 그룹 안에서 버튼 하나만 선택되게 처리하는 공통 함수
+  function pickInGroup(groupEl, clicked){
+    Array.prototype.forEach.call(groupEl.querySelectorAll(".tone"), function(x){
+      x.setAttribute("aria-pressed", x === clicked ? "true" : "false");
+    });
+  }
+
+  $("tones").addEventListener("click", function(ev){
+    var b = ev.target.closest(".tone");
+    if(!b) return;
+    currentTone = b.dataset.tone;
+    pickInGroup(this, b);
+    $("toneLabel").textContent = VocHelper.TONE_NAME[currentTone];
+    if($("vocInput").value.trim()) run();
+  });
+
+  $("styles").addEventListener("click", function(ev){
+    var b = ev.target.closest(".tone");
+    if(!b) return;
+    currentStyle = b.dataset.style;
+    pickInGroup(this, b);
+    if($("vocInput").value.trim()) run();
+  });
+
+  function renderDraftAndSummary(){
+    var text = $("vocInput").value;
+    var s = VocHelper.summarize(text);
+    var c = s.analysis;
+    lastAnalysis = c;
+
+    if(!categoryTouched){
+      $("categorySelect").value = VocHelper.category(text);
+    }
+
+    $("badgeOut").innerHTML =
+      '<span class="badge type">' + c.typeIcon + ' ' + esc(c.typeName) + '</span>'
+      + '<span class="badge lv-' + c.level + '">' + LEVEL_TXT[c.level] + '</span>'
+      + '<span class="badge">감정: ' + esc(c.sentiment) + '</span>';
+
+    $("summaryOut").innerHTML =
+      "<ul>" + s.bullets.map(function(b){ return "<li>" + esc(b) + "</li>"; }).join("") + "</ul>";
+
+    var d = VocHelper.draft(text, currentTone, {
+      customerName: $("customerName").value, style: currentStyle,
+      issueText: $("issueTextInput").value
+    });
+    $("draftOut").value = d;
+    autoGrow($("draftOut"));
+    $("toneLabel").textContent = VocHelper.TONE_NAME[currentTone];
+  }
+
+  function run(){
+    var text = $("vocInput").value;
+    if(!text.trim()){
+      $("badgeOut").innerHTML = '<span class="muted">먼저 고객의 소리를 붙여넣어 주세요.</span>';
+      $("summaryOut").innerHTML = '<p class="muted">먼저 고객의 소리를 붙여넣어 주세요.</p>';
+      $("draftOut").value = "";
+      return;
+    }
+    renderDraftAndSummary();
+  }
+
+  function esc(s){ return String(s).replace(/[&<>]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]; }); }
+
+  function autoGrow(el){
+    el.style.height = "auto";
+    el.style.height = Math.max(el.scrollHeight, 320) + "px";
+  }
+  $("draftOut").addEventListener("input", function(){ autoGrow(this); });
+
+  // 입력이 바뀌면 이전에 붙여넣은 사과 문구/분류 추정은 더 이상 맞지 않으므로 초기화
+  $("vocInput").addEventListener("input", function(){
+    $("issueTextInput").value = "";
+    categoryTouched = false;
+  });
+  // 사용자가 분류를 직접 바꾸면, 재분석이 일어나도 그 선택을 덮어쓰지 않음
+  $("categorySelect").addEventListener("change", function(){ categoryTouched = true; });
+
+  $("runBtn").addEventListener("click", run);
+  $("clearBtn").addEventListener("click", function(){
+    $("issueTextInput").value = "";
+    categoryTouched = false;
+    $("categorySelect").value = "코스_그린관리";
+    $("vocInput").value = ""; $("customerName").value = ""; $("customerPhone").value = "";
+    $("receivedDate").value = todayStr();
+    $("repliedDate").value = "";
+    $("badgeOut").innerHTML = '<span class="muted">유형 · 긴급도 · 감정이 여기에 표시됩니다.</span>';
+    $("summaryOut").innerHTML = '<p class="muted">여기에 핵심 요약이 표시됩니다.</p>';
+    $("draftOut").value = "";
+    $("draftOut").style.height = "";
+  });
+  $("copyBtn").addEventListener("click", function(){
+    var txt = $("draftOut").value || "";
+    if(!txt.trim()){ return; }
+    navigator.clipboard && navigator.clipboard.writeText(txt).then(function(){
+      flash("복사됨 ✓");
+    });
+  });
+
+  /* ---------- 저장 기능 (localStorage + 파일 다운로드) ---------- */
+  function flash(msg){
+    var m = $("copyMsg"); m.textContent = msg; m.className = "copied";
+    setTimeout(function(){ m.textContent = ""; }, 1600);
+  }
+
+  function loadRecords(){
+    try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+    catch(e){ return []; }
+  }
+  function saveRecords(list){
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(list)); }
+    catch(e){ alert("저장 공간이 가득 찼거나 저장할 수 없습니다."); }
+  }
+
+  function currentDraftText(){
+    return ($("draftOut").value || "").trim();
+  }
+
+  function fmtWhen(ts){
+    var d = new Date(ts);
+    function p(n){ return (n<10?"0":"") + n; }
+    return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate())
+      + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+
+  function renderSaved(){
+    var list = loadRecords();
+    $("savedCount").textContent = list.length + "건";
+    if(list.length === 0){
+      $("savedList").innerHTML = '<p class="muted">아직 저장된 기록이 없습니다.</p>';
+      return;
+    }
+    $("savedList").innerHTML = list.map(function(r){
+      var title = r.category || r.title || VocHelper.category(r.voc);
+      var typeTag = r.typeName
+        ? '<span class="tag">' + esc(r.typeName) + (r.level ? ' · ' + esc(LEVEL_TXT[r.level]||"") : "") + '</span>' : "";
+      var timeline = "🗓️ 접수 " + esc(r.receivedDate || "-") + " → 회신 " + esc(r.repliedDate || "미정");
+      var customerTag = (r.customerName || r.customerPhone)
+        ? '<span class="tag">👤 ' + esc(r.customerName || "-") + (r.customerPhone ? " · " + esc(r.customerPhone) : "") + '</span>' : "";
+      return '<div class="saved-item" data-id="' + r.id + '">'
+        + '<div class="head"><strong>' + esc(title || "기타") + '</strong>' + typeTag + customerTag
+        + '<span class="when">' + esc(fmtWhen(r.ts)) + '</span></div>'
+        + '<div class="peek" style="-webkit-line-clamp:1">' + timeline + '</div>'
+        + '<div class="peek"><strong>고객의 소리:</strong> ' + esc(r.voc).slice(0,100) + '</div>'
+        + '<div class="peek"><strong>응대 초안:</strong> ' + esc(r.draft || "").slice(0,100) + '</div>'
+        + '<div class="acts">'
+        + '<button data-act="load">↩️ 불러오기</button>'
+        + '<button data-act="copy">📋 회신 복사</button>'
+        + '<button data-act="del" class="del">삭제</button>'
+        + '</div></div>';
+    }).join("");
+  }
+
+  $("saveBtn").addEventListener("click", function(){
+    var voc = $("vocInput").value.trim();
+    if(!voc){ flash("먼저 내용을 입력하세요"); return; }
+    var draft = currentDraftText();
+    if(!draft){ run(); draft = currentDraftText(); }   // 초안이 없으면 먼저 생성
+    var list = loadRecords();
+    list.unshift({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      ts: Date.now(),
+      voc: voc,
+      draft: draft,
+      category: $("categorySelect").value,
+      tone: currentTone, style: currentStyle,
+      customerName: $("customerName").value,
+      customerPhone: $("customerPhone").value,
+      receivedDate: $("receivedDate").value,
+      repliedDate: $("repliedDate").value,
+      typeName: lastAnalysis ? lastAnalysis.typeName : "",
+      level: lastAnalysis ? lastAnalysis.level : ""
+    });
+    saveRecords(list);
+    renderSaved();
+    flash("저장됨 ✓");
+  });
+
+  // 목록 내 버튼(불러오기/복사/삭제) 위임 처리
+  $("savedList").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button"); if(!btn) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    var id = item.getAttribute("data-id");
+    var list = loadRecords();
+    var rec = list.filter(function(r){ return r.id === id; })[0];
+    if(!rec) return;
+    var act = btn.getAttribute("data-act");
+
+    if(act === "del"){
+      saveRecords(list.filter(function(r){ return r.id !== id; }));
+      renderSaved();
+    } else if(act === "copy"){
+      navigator.clipboard && navigator.clipboard.writeText(rec.draft).then(function(){ flash("회신 복사됨 ✓"); });
+    } else if(act === "load"){
+      $("vocInput").value = rec.voc;
+      $("customerName").value = rec.customerName || "";
+      $("customerPhone").value = rec.customerPhone || "";
+      $("receivedDate").value = rec.receivedDate || "";
+      $("repliedDate").value = rec.repliedDate || "";
+      if(rec.tone){ currentTone = rec.tone; pickByData($("tones"), "tone", rec.tone); }
+      if(rec.style){ currentStyle = rec.style; pickByData($("styles"), "style", rec.style); }
+      $("categorySelect").value = rec.category || VocHelper.category(rec.voc);
+      categoryTouched = true;
+      run();
+      if(rec.draft){
+        $("draftOut").value = rec.draft;
+        autoGrow($("draftOut"));
+      }
+      window.scrollTo({ top:0, behavior:"smooth" });
+    }
+  });
+
+  // data-속성 값으로 그룹 내 버튼 선택
+  function pickByData(groupEl, key, val){
+    Array.prototype.forEach.call(groupEl.querySelectorAll(".tone"), function(x){
+      x.setAttribute("aria-pressed", x.dataset[key] === val ? "true" : "false");
+    });
+  }
+
+  $("clearAllBtn").addEventListener("click", function(){
+    if(loadRecords().length === 0) return;
+    if(confirm("저장된 기록을 모두 삭제할까요? 되돌릴 수 없습니다.")){
+      saveRecords([]); renderSaved();
+    }
+  });
+
+  // 현재 VOC + 회신을 텍스트 파일로 저장
+  $("downloadBtn").addEventListener("click", function(){
+    var voc = $("vocInput").value.trim();
+    var draft = currentDraftText();
+    if(!voc && !draft){ flash("저장할 내용이 없습니다"); return; }
+    if(!draft){ run(); draft = currentDraftText(); }
+    var text =
+      "[VOC 도우미 기록]\n" +
+      "저장 시각: " + fmtWhen(Date.now()) + "\n" +
+      (lastAnalysis ? "유형/긴급도: " + lastAnalysis.typeName + " · " + (LEVEL_TXT[lastAnalysis.level]||"") + "\n" : "") +
+      "\n=== 고객의 소리 ===\n" + voc +
+      "\n\n=== 응대 초안 ===\n" + draft + "\n";
+    var blob = new Blob([text], { type:"text/plain;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "VOC_" + fmtWhen(Date.now()).replace(/[: ]/g,"-") + ".txt";
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    flash("파일 저장됨 ✓");
+  });
+
+  // 저장된 기록을 엑셀(CSV)로 내보내기
+  function csvField(v){
+    var s = String(v == null ? "" : v);
+    if(/[",\n]/.test(s)){ s = '"' + s.replace(/"/g,'""') + '"'; }
+    return s;
+  }
+  function tsDateStr(ts){
+    var d = new Date(ts);
+    function p(n){ return (n<10?"0":"") + n; }
+    return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
+  }
+  $("exportBtn").addEventListener("click", function(){
+    var list = loadRecords();
+    var from = $("exportFrom").value;
+    var to = $("exportTo").value;
+    if(from || to){
+      list = list.filter(function(r){
+        var d = r.receivedDate || tsDateStr(r.ts);
+        if(from && d < from) return false;
+        if(to && d > to) return false;
+        return true;
+      });
+    }
+    if(list.length === 0){ flash("해당 기간에 내보낼 기록이 없습니다"); return; }
+    var header = ["분류","유형","긴급도","VOC 접수일","회신일","VOC 내용","응대 초안","고객이름","전화번호","저장시각"];
+    var rows = [header.map(csvField).join(",")];
+    list.forEach(function(r){
+      rows.push([
+        r.category || "",
+        r.typeName || "",
+        r.level ? (LEVEL_TXT[r.level]||"").replace(/[^\w\s가-힣]/g,"").trim() : "",
+        r.receivedDate || "",
+        r.repliedDate || "",
+        r.voc || "",
+        r.draft || "",
+        r.customerName || "",
+        r.customerPhone || "",
+        fmtWhen(r.ts)
+      ].map(csvField).join(","));
+    });
+    var csv = "\uFEFF" + rows.join("\r\n");
+    var blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    var rangeTag = (from || to) ? (from || "처음") + "_~_" + (to || "오늘") : "전체";
+    a.download = "VOC_기록_" + rangeTag + "_" + todayStr() + ".csv";
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    flash("엑셀 파일로 내보냄 ✓");
+  });
+
+  renderSaved();   // 시작 시 저장 목록 표시
+})();
+</script>
+<script>
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("service-worker.js");
+    });
+  }
+</script>
+</body>
+</html>
