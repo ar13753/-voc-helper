@@ -198,7 +198,7 @@
   <section id="homeView" class="card home-menu hidden-view">
     <p class="muted" id="whoAmI" style="margin:0 0 4px"></p>
     <button class="home-btn" data-view="notice"><span class="num">1</span> 📢 고객 공지</button>
-    <button class="home-btn" data-view="voc"><span class="num">2</span> 🗣️ VOC 도우미</button>
+    <button class="home-btn" id="vocMenuBtn" data-view="voc" style="display:none"><span class="num">2</span> 🗣️ VOC 도우미</button>
     <button class="ghost" id="logoutBtn" style="margin-top:6px">로그아웃</button>
   </section>
 
@@ -703,7 +703,10 @@ window.VocHelper = (function(){
     $("noticeView").classList.toggle("hidden-view", view !== "notice");
   }
   Array.prototype.forEach.call(document.querySelectorAll(".home-btn"), function(b){
-    b.addEventListener("click", function(){ showView(b.dataset.view); });
+    b.addEventListener("click", function(){
+      if(b.id === "vocMenuBtn" && (!currentUser || currentUser.role !== "admin")) return;
+      showView(b.dataset.view);
+    });
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-back]"), function(b){
     b.addEventListener("click", function(){ showView("home"); });
@@ -789,6 +792,7 @@ window.VocHelper = (function(){
     window.VocAuth.setDepartment(deptPickSelected).then(function(){
       currentUser.department = deptPickSelected;
       $("whoAmI").textContent = currentUser.id + "님 (" + currentUser.department + ")";
+      $("vocMenuBtn").style.display = currentUser.role === "admin" ? "" : "none";
       showView("home");
     }).catch(function(err){
       $("deptPickError").textContent = authErrorMessage(err);
@@ -805,6 +809,7 @@ window.VocHelper = (function(){
             showView("deptpick");
           } else {
             $("whoAmI").textContent = user.id + "님 (" + user.department + ")";
+            $("vocMenuBtn").style.display = user.role === "admin" ? "" : "none";
             showView("home");
           }
         } else {
@@ -1296,7 +1301,7 @@ window.VocHelper = (function(){
         if(!user){ callback(null); return; }
         getDoc(doc(usersCol, user.uid)).then(function(snap){
           var profile = snap.exists() ? snap.data() : {};
-          callback({ uid: user.uid, id: profile.id || user.email, department: profile.department || "" });
+          callback({ uid: user.uid, id: profile.id || user.email, department: profile.department || "", role: profile.role || "" });
         });
       });
     }
