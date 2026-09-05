@@ -266,14 +266,15 @@
     <h2>고객 공지 공유 <span id="noticeCount" class="tag">0건</span></h2>
     <p class="muted" style="margin:0 0 6px">프론트 · 예약 · 캐디 · 식음 부서가 실시간으로 함께 보는 고객 상황 공지판입니다.</p>
     <div class="row">
-      <input type="text" id="noticeCustomerName" placeholder="고객이름 (예: 홍길동)">
-      <input type="text" id="noticeCourse" placeholder="코스 (예: 동코스)">
       <input type="text" id="noticeTeeTime" placeholder="티오프 시간 (예: 08:00)">
+      <input type="text" id="noticeCourse" placeholder="코스 (예: 동코스)">
+      <input type="text" id="noticeCustomerName" placeholder="고객이름 (예: 홍길동)">
     </div>
     <label style="margin-top:6px">내용</label>
     <textarea id="noticeContent" style="min-height:80px" placeholder="예) 무릎 부상으로 카트 이용 필요, VIP 응대 요망 등"></textarea>
     <label style="margin-top:6px">전달 대상 부서 (여러 개 선택 가능)</label>
     <div class="tones" id="noticeDepts" role="group" aria-label="대상 부서">
+      <button class="tone" data-dept="모든부서" aria-pressed="false">모든부서</button>
       <button class="tone" data-dept="프론트" aria-pressed="false">프론트</button>
       <button class="tone" data-dept="예약" aria-pressed="false">예약</button>
       <button class="tone" data-dept="캐디" aria-pressed="false">캐디</button>
@@ -1015,7 +1016,7 @@ window.VocHelper = (function(){
     }
     $("noticeList").innerHTML = noticesCache.map(function(n){
       var deptTags = (n.depts || []).map(function(d){ return '<span class="tag">' + esc(d) + '</span>'; }).join("");
-      var courseInfo = [n.course, n.teeTime].filter(Boolean).join(" · ");
+      var courseInfo = [n.teeTime, n.course].filter(Boolean).join(" · ");
       return '<div class="saved-item" data-id="' + n.id + '">'
         + '<div class="head"><strong>' + esc(maskName(n.customerName) || "고객") + '</strong>' + deptTags
         + '<span class="when">' + esc(fmtWhen(n.ts)) + '</span></div>'

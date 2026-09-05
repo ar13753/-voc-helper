@@ -1,4 +1,4 @@
-var CACHE_NAME = "voc-helper-v6";
+var CACHE_NAME = "voc-helper-v7";
 var ASSETS = [
   "./",
   "./index.html",
