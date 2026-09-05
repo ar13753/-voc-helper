@@ -1250,7 +1250,7 @@ window.VocHelper = (function(){
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut,
-    GoogleAuthProvider, signInWithRedirect, getRedirectResult
+    GoogleAuthProvider, signInWithRedirect, getRedirectResult, setPersistence, browserSessionPersistence
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
   var firebaseConfig = {
@@ -1265,6 +1265,7 @@ window.VocHelper = (function(){
   var app = initializeApp(firebaseConfig);
   var db = getFirestore(app);
   var auth = getAuth(app);
+  setPersistence(auth, browserSessionPersistence);
   var recordsCol = collection(db, "records");
   var noticesCol = collection(db, "notices");
   var usersCol = collection(db, "users");
