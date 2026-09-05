@@ -821,7 +821,9 @@ window.VocHelper = (function(){
     var act = btn.getAttribute("data-act");
 
     if(act === "del"){
-      window.VocDB.remove(id).catch(function(){ flash("삭제 실패"); });
+      if(confirm("이 기록을 삭제하시겠습니까?")){
+        window.VocDB.remove(id).catch(function(){ flash("삭제 실패"); });
+      }
     } else if(act === "copy"){
       navigator.clipboard && navigator.clipboard.writeText(rec.draft).then(function(){ flash("회신 복사됨 ✓"); });
     } else if(act === "load"){
