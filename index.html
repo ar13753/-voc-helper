@@ -235,6 +235,33 @@
     </div>
   </section>
 
+  <!-- 고객 공지 공유 -->
+  <section class="card" style="margin-top:16px">
+    <h2>5. 고객 공지 공유 <span id="noticeCount" class="tag">0건</span></h2>
+    <p class="muted" style="margin:0 0 6px">프론트 · 예약 · 캐디 · 식음 부서가 실시간으로 함께 보는 고객 상황 공지판입니다.</p>
+    <div class="row">
+      <input type="text" id="noticeCustomerName" placeholder="고객이름 (예: 홍길동)">
+      <input type="text" id="noticeCourse" placeholder="코스 (예: 동코스)">
+      <input type="text" id="noticeTeeTime" placeholder="티오프 시간 (예: 08:00)">
+    </div>
+    <label style="margin-top:6px">내용</label>
+    <textarea id="noticeContent" style="min-height:80px" placeholder="예) 무릎 부상으로 카트 이용 필요, VIP 응대 요망 등"></textarea>
+    <label style="margin-top:6px">전달 대상 부서 (여러 개 선택 가능)</label>
+    <div class="tones" id="noticeDepts" role="group" aria-label="대상 부서">
+      <button class="tone" data-dept="프론트" aria-pressed="false">프론트</button>
+      <button class="tone" data-dept="예약" aria-pressed="false">예약</button>
+      <button class="tone" data-dept="캐디" aria-pressed="false">캐디</button>
+      <button class="tone" data-dept="식음" aria-pressed="false">식음</button>
+    </div>
+    <div class="row">
+      <button class="action" id="noticeSaveBtn">📢 공지 등록</button>
+      <button class="ghost" id="noticeClearBtn">지우기</button>
+    </div>
+    <div id="noticeList" class="saved-list" style="margin-top:12px">
+      <p class="muted">등록된 공지가 없습니다.</p>
+    </div>
+  </section>
+
   <footer>규칙 기반 · 저장된 기록은 이 앱 전용 데이터베이스에 보관되며 모든 기기에서 실시간으로 공유됩니다.</footer>
 </div>
 
@@ -916,6 +943,103 @@ window.VocHelper = (function(){
     flash("엑셀 파일로 내보냄 ✓");
   });
 
+  /* ---------- 고객 공지 공유 (Firestore, 부서 간 실시간 공유) ---------- */
+  // 이름 가운데 글자를 * 로 가려서 보여준다 (예: 홍길동 -> 홍*동, 김수 -> 김*, 남궁예진 -> 남**진)
+  function maskName(name){
+    name = (name || "").trim();
+    if(name.length <= 1) return name;
+    if(name.length === 2) return name[0] + "*";
+    return name[0] + "*".repeat(name.length - 2) + name[name.length - 1];
+  }
+
+  var noticesCache = [];
+  var selectedDepts = [];
+
+  $("noticeDepts").addEventListener("click", function(ev){
+    var b = ev.target.closest(".tone");
+    if(!b) return;
+    var pressed = b.getAttribute("aria-pressed") === "true";
+    b.setAttribute("aria-pressed", pressed ? "false" : "true");
+    var dept = b.dataset.dept;
+    if(pressed) selectedDepts = selectedDepts.filter(function(d){ return d !== dept; });
+    else selectedDepts.push(dept);
+  });
+
+  function renderNotices(){
+    $("noticeCount").textContent = noticesCache.length + "건";
+    if(noticesCache.length === 0){
+      $("noticeList").innerHTML = '<p class="muted">등록된 공지가 없습니다.</p>';
+      return;
+    }
+    $("noticeList").innerHTML = noticesCache.map(function(n){
+      var deptTags = (n.depts || []).map(function(d){ return '<span class="tag">' + esc(d) + '</span>'; }).join("");
+      var courseInfo = [n.course, n.teeTime].filter(Boolean).join(" · ");
+      return '<div class="saved-item" data-id="' + n.id + '">'
+        + '<div class="head"><strong>' + esc(maskName(n.customerName) || "고객") + '</strong>' + deptTags
+        + '<span class="when">' + esc(fmtWhen(n.ts)) + '</span></div>'
+        + (courseInfo ? '<div class="peek" style="-webkit-line-clamp:1">🏌️ ' + esc(courseInfo) + '</div>' : '')
+        + '<div class="peek">' + esc(n.content || "") + '</div>'
+        + '<div class="acts"><button data-act="del" class="del">삭제</button></div>'
+        + '</div>';
+    }).join("");
+  }
+
+  function startNoticeDb(){
+    function attach(){
+      window.NoticeDB.subscribe(function(list){
+        noticesCache = list;
+        renderNotices();
+      });
+    }
+    if(window.NoticeDB){ attach(); }
+    else { window.addEventListener("noticedb-ready", attach, { once:true }); }
+  }
+
+  $("noticeSaveBtn").addEventListener("click", function(){
+    var content = $("noticeContent").value.trim();
+    var customerName = $("noticeCustomerName").value.trim();
+    if(!content && !customerName){ flash("고객이름이나 내용을 입력하세요"); return; }
+    if(selectedDepts.length === 0){ flash("전달 대상 부서를 선택하세요"); return; }
+    var id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    var notice = {
+      ts: Date.now(),
+      customerName: customerName,
+      course: $("noticeCourse").value.trim(),
+      teeTime: $("noticeTeeTime").value.trim(),
+      content: content,
+      depts: selectedDepts.slice()
+    };
+    window.NoticeDB.save(id, notice).then(function(){
+      flash("공지 등록됨 ✓");
+      $("noticeClearBtn").click();
+    }).catch(function(){ flash("등록 실패"); });
+  });
+
+  $("noticeClearBtn").addEventListener("click", function(){
+    $("noticeCustomerName").value = "";
+    $("noticeCourse").value = "";
+    $("noticeTeeTime").value = "";
+    $("noticeContent").value = "";
+    selectedDepts = [];
+    Array.prototype.forEach.call($("noticeDepts").querySelectorAll(".tone"), function(x){
+      x.setAttribute("aria-pressed", "false");
+    });
+  });
+
+  $("noticeList").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button"); if(!btn) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    var id = item.getAttribute("data-id");
+    if(btn.getAttribute("data-act") === "del"){
+      if(confirm("이 공지를 삭제하시겠습니까?")){
+        window.NoticeDB.remove(id).catch(function(){ flash("삭제 실패"); });
+      }
+    }
+  });
+
+  $("noticeList").innerHTML = '<p class="muted">공지 불러오는 중…</p>';
+  startNoticeDb();   // 시작 시 Firestore에서 공지 목록을 불러와 실시간으로 동기화
+
   $("savedList").innerHTML = '<p class="muted">기록 불러오는 중…</p>';
   startVocDb();   // 시작 시 Firestore에서 저장 목록을 불러와 실시간으로 동기화
 })();
@@ -938,6 +1062,7 @@ window.VocHelper = (function(){
   var app = initializeApp(firebaseConfig);
   var db = getFirestore(app);
   var recordsCol = collection(db, "records");
+  var noticesCol = collection(db, "notices");
 
   window.VocDB = {
     subscribe: function(onChange){
@@ -956,6 +1081,24 @@ window.VocHelper = (function(){
     remove: function(id){ return deleteDoc(doc(recordsCol, id)); }
   };
   window.dispatchEvent(new Event("vocdb-ready"));
+
+  window.NoticeDB = {
+    subscribe: function(onChange){
+      var q = query(noticesCol, orderBy("ts", "desc"), limit(200));
+      return onSnapshot(q, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          data.id = d.id;
+          list.push(data);
+        });
+        onChange(list);
+      }, function(err){ console.error("Firestore subscribe error", err); });
+    },
+    save: function(id, data){ return setDoc(doc(noticesCol, id), data); },
+    remove: function(id){ return deleteDoc(doc(noticesCol, id)); }
+  };
+  window.dispatchEvent(new Event("noticedb-ready"));
 </script>
 <script>
   if("serviceWorker" in navigator){
