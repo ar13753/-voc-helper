@@ -768,6 +768,10 @@ window.VocHelper = (function(){
     });
   });
 
+  window.addEventListener("vocauth-error", function(ev){
+    $("authError").textContent = authErrorMessage(ev.detail);
+  });
+
   $("logoutBtn").addEventListener("click", function(){
     window.VocAuth.signOut();
   });
@@ -1246,7 +1250,7 @@ window.VocHelper = (function(){
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut,
-    GoogleAuthProvider, signInWithPopup
+    GoogleAuthProvider, signInWithRedirect, getRedirectResult
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
   var firebaseConfig = {
@@ -1277,7 +1281,7 @@ window.VocHelper = (function(){
       return signInWithEmailAndPassword(auth, idToEmail(id), pw);
     },
     signInWithGoogle: function(){
-      return signInWithPopup(auth, new GoogleAuthProvider());
+      return signInWithRedirect(auth, new GoogleAuthProvider());
     },
     setDepartment: function(department){
       return setDoc(doc(usersCol, auth.currentUser.uid), {
@@ -1297,6 +1301,10 @@ window.VocHelper = (function(){
     }
   };
   window.dispatchEvent(new Event("vocauth-ready"));
+
+  getRedirectResult(auth).catch(function(err){
+    window.dispatchEvent(new CustomEvent("vocauth-error", { detail: err }));
+  });
 
   window.VocDB = {
     subscribe: function(onChange){
