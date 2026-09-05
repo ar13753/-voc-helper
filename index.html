@@ -198,9 +198,21 @@
   <section id="homeView" class="card home-menu hidden-view">
     <p class="muted" id="whoAmI" style="margin:0 0 4px"></p>
     <button class="home-btn" data-view="notice"><span class="num">1</span> 📢 고객 공지</button>
-    <button class="home-btn" id="vocMenuBtn" data-view="voc" style="display:none"><span class="num">2</span> 🗣️ VOC 도우미</button>
+    <button class="home-btn" id="vocMenuBtn" data-view="voc"><span class="num">2</span> 🗣️ VOC 도우미</button>
+    <button class="home-btn" id="vocRequestsBtn" data-view="vocRequests" style="display:none">🔑 VOC 접근 요청 관리</button>
     <button class="ghost" id="logoutBtn" style="margin-top:6px">로그아웃</button>
   </section>
+
+  <div id="vocRequestsView" class="hidden-view">
+  <button class="ghost back-btn" data-back>← 홈으로</button>
+  <section class="card">
+    <h2>VOC 접근 요청 관리 <span id="vocReqCount" class="tag">0건</span></h2>
+    <p class="muted" style="margin:0 0 6px">VOC 도우미 사용을 요청한 직원을 승인하거나 거절하세요.</p>
+    <div id="vocReqList" class="saved-list" style="margin-top:12px">
+      <p class="muted">대기 중인 요청이 없습니다.</p>
+    </div>
+  </section>
+  </div>
 
   <div id="vocView" class="hidden-view">
   <button class="ghost back-btn" data-back>← 홈으로</button>
@@ -701,12 +713,11 @@ window.VocHelper = (function(){
     $("homeView").classList.toggle("hidden-view", view !== "home");
     $("vocView").classList.toggle("hidden-view", view !== "voc");
     $("noticeView").classList.toggle("hidden-view", view !== "notice");
+    $("vocRequestsView").classList.toggle("hidden-view", view !== "vocRequests");
   }
   Array.prototype.forEach.call(document.querySelectorAll(".home-btn"), function(b){
-    b.addEventListener("click", function(){
-      if(b.id === "vocMenuBtn" && (!currentUser || currentUser.role !== "admin")) return;
-      showView(b.dataset.view);
-    });
+    if(b.id === "vocMenuBtn") return; // 별도 클릭 핸들러에서 승인 여부를 확인함
+    b.addEventListener("click", function(){ showView(b.dataset.view); });
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-back]"), function(b){
     b.addEventListener("click", function(){ showView("home"); });
@@ -792,11 +803,62 @@ window.VocHelper = (function(){
     window.VocAuth.setDepartment(deptPickSelected).then(function(){
       currentUser.department = deptPickSelected;
       $("whoAmI").textContent = currentUser.id + "님 (" + currentUser.department + ")";
-      $("vocMenuBtn").style.display = currentUser.role === "admin" ? "" : "none";
+      $("vocRequestsBtn").style.display = currentUser.role === "admin" ? "" : "none";
       showView("home");
     }).catch(function(err){
       $("deptPickError").textContent = authErrorMessage(err);
     });
+  });
+
+  $("vocMenuBtn").addEventListener("click", function(){
+    if(!currentUser) return;
+    if(currentUser.role === "admin" || currentUser.vocAccess === "approved"){
+      showView("voc");
+      return;
+    }
+    if(currentUser.vocAccess === "pending"){
+      flash("관리자 승인 대기 중입니다");
+      return;
+    }
+    window.VocAuth.requestVocAccess().then(function(){
+      currentUser.vocAccess = "pending";
+      flash("승인 요청을 보냈습니다. 관리자 승인을 기다려주세요");
+    });
+  });
+
+  var vocReqCache = [];
+  function renderVocRequests(){
+    $("vocReqCount").textContent = vocReqCache.length + "건";
+    if(vocReqCache.length === 0){
+      $("vocReqList").innerHTML = '<p class="muted">대기 중인 요청이 없습니다.</p>';
+      return;
+    }
+    $("vocReqList").innerHTML = vocReqCache.map(function(u){
+      return '<div class="saved-item" data-uid="' + u.uid + '">'
+        + '<div class="head"><strong>' + esc(u.id || "") + '</strong>' + (u.department ? '<span class="tag">' + esc(u.department) + '</span>' : '') + '</div>'
+        + '<div class="acts">'
+        + '<button data-act="approve" class="action" style="padding:6px 12px">승인</button>'
+        + '<button data-act="reject" class="del">거절</button>'
+        + '</div></div>';
+    }).join("");
+  }
+  var vocReqUnsub = null;
+  $("vocRequestsBtn").addEventListener("click", function(){
+    if(vocReqUnsub) return;
+    vocReqUnsub = window.VocAuth.listVocRequests(function(list){
+      vocReqCache = list;
+      renderVocRequests();
+    });
+  });
+  $("vocReqList").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button[data-act]"); if(!btn) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    var uid = item.getAttribute("data-uid");
+    if(btn.dataset.act === "approve"){
+      window.VocAuth.approveVocAccess(uid).then(function(){ flash("승인 완료 ✓"); }).catch(function(){ flash("승인 실패"); });
+    } else if(btn.dataset.act === "reject"){
+      window.VocAuth.rejectVocAccess(uid).then(function(){ flash("거절 처리됨"); }).catch(function(){ flash("거절 실패"); });
+    }
   });
 
   function startAuth(){
@@ -809,7 +871,7 @@ window.VocHelper = (function(){
             showView("deptpick");
           } else {
             $("whoAmI").textContent = user.id + "님 (" + user.department + ")";
-            $("vocMenuBtn").style.display = user.role === "admin" ? "" : "none";
+            $("vocRequestsBtn").style.display = user.role === "admin" ? "" : "none";
             showView("home");
           }
         } else {
@@ -1251,7 +1313,7 @@ window.VocHelper = (function(){
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, collection, doc, getDoc, setDoc, deleteDoc, onSnapshot, query, orderBy, limit
+    getFirestore, collection, doc, getDoc, setDoc, deleteDoc, onSnapshot, query, orderBy, limit, where
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut,
@@ -1297,12 +1359,42 @@ window.VocHelper = (function(){
     },
     signOut: function(){ return signOut(auth); },
     onChange: function(callback){
-      return onAuthStateChanged(auth, function(user){
+      var unsubProfile = null;
+      var unsubAuth = onAuthStateChanged(auth, function(user){
+        if(unsubProfile){ unsubProfile(); unsubProfile = null; }
         if(!user){ callback(null); return; }
-        getDoc(doc(usersCol, user.uid)).then(function(snap){
+        unsubProfile = onSnapshot(doc(usersCol, user.uid), function(snap){
           var profile = snap.exists() ? snap.data() : {};
-          callback({ uid: user.uid, id: profile.id || user.email, department: profile.department || "", role: profile.role || "" });
+          callback({
+            uid: user.uid,
+            id: profile.id || user.email,
+            department: profile.department || "",
+            role: profile.role || "",
+            vocAccess: profile.vocAccess || "none"
+          });
         });
+      });
+      return function(){ if(unsubProfile) unsubProfile(); unsubAuth(); };
+    },
+    requestVocAccess: function(){
+      return setDoc(doc(usersCol, auth.currentUser.uid), { vocAccess: "pending" }, { merge: true });
+    },
+    approveVocAccess: function(uid){
+      return setDoc(doc(usersCol, uid), { vocAccess: "approved" }, { merge: true });
+    },
+    rejectVocAccess: function(uid){
+      return setDoc(doc(usersCol, uid), { vocAccess: "none" }, { merge: true });
+    },
+    listVocRequests: function(onChange){
+      var q = query(usersCol, where("vocAccess", "==", "pending"));
+      return onSnapshot(q, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          data.uid = d.id;
+          list.push(data);
+        });
+        onChange(list);
       });
     }
   };
