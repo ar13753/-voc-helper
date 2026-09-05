@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOC 도우미 설치</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --text:#1a1d29; --muted:#6b7280;
+    --accent:#3d5afe; --accent-dark:#2c42d1; --border:#e5e7eb;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Malgun Gothic",sans-serif;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:20px;
+    padding:36px 28px; max-width:420px; width:100%; text-align:center;
+    box-shadow:0 8px 24px rgba(0,0,0,0.06);
+  }
+  img.icon{ width:88px; height:88px; border-radius:20px; margin-bottom:16px; }
+  h1{ font-size:22px; margin:0 0 6px; }
+  p.desc{ color:var(--muted); font-size:14px; line-height:1.6; margin:0 0 24px; }
+  a.btn{
+    display:block; background:var(--accent); color:#fff; text-decoration:none;
+    font-weight:600; font-size:16px; padding:14px 20px; border-radius:12px;
+    margin-bottom:10px; transition:background .15s;
+  }
+  a.btn:active{ background:var(--accent-dark); }
+  a.btn.secondary{
+    background:transparent; color:var(--accent); border:1px solid var(--accent);
+  }
+  .steps{
+    text-align:left; margin-top:24px; padding-top:20px; border-top:1px solid var(--border);
+  }
+  .steps h2{ font-size:14px; color:var(--muted); margin:0 0 10px; font-weight:600; }
+  .steps ol{ margin:0; padding-left:20px; font-size:13.5px; line-height:1.9; color:var(--text); }
+  .version{ font-size:12px; color:var(--muted); margin-top:18px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <img class="icon" src="icons/icon.svg" alt="VOC 도우미">
+    <h1>VOC 도우미</h1>
+    <p class="desc">고객의 소리(VOC)를 유형별로 분석하고<br>응대 초안을 자동으로 작성하는 도구입니다.</p>
+
+    <a class="btn" href="VOC-Helper.apk" download>⬇ 안드로이드 앱 다운로드 (APK)</a>
+    <a class="btn secondary" href="./index.html">🌐 아이폰 / 웹으로 바로 열기</a>
+
+    <div class="steps">
+      <h2>설치 방법 (안드로이드)</h2>
+      <ol>
+        <li>위 버튼을 눌러 APK 파일을 다운로드합니다.</li>
+        <li>다운로드 완료 알림을 눌러 설치를 시작합니다.</li>
+        <li>"출처를 알 수 없는 앱" 경고가 뜨면 <b>설정 → 허용</b> 후 다시 설치를 진행합니다.</li>
+        <li>설치가 끝나면 홈 화면에서 VOC도우미 아이콘을 실행하세요.</li>
+      </ol>
+    </div>
+    <div class="version">버전 1.1.0</div>
+  </div>
+</body>
+</html>
