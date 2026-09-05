@@ -61,7 +61,7 @@
     color:var(--ink); font:inherit;
   }
   .row{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px}
-  input[type=text], input[type=date], select{
+  input[type=text], input[type=password], input[type=date], select{
     flex:1; min-width:120px; padding:9px 11px; border:1px solid var(--line);
     border-radius:9px; background:var(--soft); color:var(--ink); font:inherit;
   }
@@ -149,10 +149,37 @@
     <p>고객의 소리(VOC)를 붙여넣으면 유형과 긴급도를 분석해 짧게 요약하고, 원하는 톤의 응대 초안을 만들어 드립니다. (인터넷 연결 없이 동작)</p>
   </header>
 
+  <!-- 로그인 / 회원가입 -->
+  <section id="authView" class="card">
+    <h2 id="authTitle">로그인</h2>
+    <div class="row">
+      <input type="text" id="authId" placeholder="아이디" autocomplete="username">
+    </div>
+    <div class="row">
+      <input type="password" id="authPw" placeholder="비밀번호" autocomplete="current-password">
+    </div>
+    <div id="authDeptRow" style="display:none">
+      <label style="margin-top:6px">소속 부서</label>
+      <div class="tones" id="authDepts" role="group" aria-label="소속 부서">
+        <button class="tone" data-dept="프론트" aria-pressed="false">프론트</button>
+        <button class="tone" data-dept="예약" aria-pressed="false">예약</button>
+        <button class="tone" data-dept="캐디" aria-pressed="false">캐디</button>
+        <button class="tone" data-dept="식음" aria-pressed="false">식음</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="action" id="authSubmitBtn">로그인</button>
+      <button class="ghost" id="authToggleBtn">계정이 없으신가요? 회원가입</button>
+    </div>
+    <p id="authError" class="muted" style="color:var(--danger); min-height:1.2em"></p>
+  </section>
+
   <!-- 홈 메뉴 -->
-  <section id="homeView" class="card home-menu">
+  <section id="homeView" class="card home-menu hidden-view">
+    <p class="muted" id="whoAmI" style="margin:0 0 4px"></p>
     <button class="home-btn" data-view="notice"><span class="num">1</span> 📢 고객 공지</button>
     <button class="home-btn" data-view="voc"><span class="num">2</span> 🗣️ VOC 도우미</button>
+    <button class="ghost" id="logoutBtn" style="margin-top:6px">로그아웃</button>
   </section>
 
   <div id="vocView" class="hidden-view">
@@ -649,7 +676,8 @@ window.VocHelper = (function(){
 
   /* ---------- 홈 메뉴 / 화면 전환 ---------- */
   function showView(view){
-    $("homeView").style.display = view === "home" ? "" : "none";
+    $("authView").classList.toggle("hidden-view", view !== "auth");
+    $("homeView").classList.toggle("hidden-view", view !== "home");
     $("vocView").classList.toggle("hidden-view", view !== "voc");
     $("noticeView").classList.toggle("hidden-view", view !== "notice");
   }
@@ -659,7 +687,77 @@ window.VocHelper = (function(){
   Array.prototype.forEach.call(document.querySelectorAll("[data-back]"), function(b){
     b.addEventListener("click", function(){ showView("home"); });
   });
-  showView("home");
+
+  /* ---------- 로그인 / 회원가입 (Firebase Authentication) ---------- */
+  var currentUser = null;
+  var authMode = "login";
+  var authSelectedDept = "";
+
+  $("authDepts").addEventListener("click", function(ev){
+    var b = ev.target.closest(".tone");
+    if(!b) return;
+    Array.prototype.forEach.call(this.querySelectorAll(".tone"), function(x){ x.setAttribute("aria-pressed","false"); });
+    b.setAttribute("aria-pressed","true");
+    authSelectedDept = b.dataset.dept;
+  });
+
+  $("authToggleBtn").addEventListener("click", function(){
+    authMode = authMode === "login" ? "signup" : "login";
+    $("authTitle").textContent = authMode === "login" ? "로그인" : "회원가입";
+    $("authSubmitBtn").textContent = authMode === "login" ? "로그인" : "가입하기";
+    $("authToggleBtn").textContent = authMode === "login" ? "계정이 없으신가요? 회원가입" : "이미 계정이 있으신가요? 로그인";
+    $("authDeptRow").style.display = authMode === "signup" ? "" : "none";
+    $("authError").textContent = "";
+  });
+
+  function authErrorMessage(err){
+    var code = (err && err.code) || "";
+    if(code === "auth/email-already-in-use") return "이미 사용 중인 아이디입니다.";
+    if(code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") return "아이디 또는 비밀번호가 올바르지 않습니다.";
+    if(code === "auth/weak-password") return "비밀번호는 6자 이상이어야 합니다.";
+    if(code === "auth/invalid-email") return "아이디에 사용할 수 없는 문자가 있습니다.";
+    if(code === "auth/operation-not-allowed") return "로그인 기능이 아직 설정되지 않았습니다. 관리자에게 문의하세요.";
+    return "오류가 발생했습니다 (" + code + ")";
+  }
+
+  $("authSubmitBtn").addEventListener("click", function(){
+    var id = $("authId").value.trim();
+    var pw = $("authPw").value;
+    $("authError").textContent = "";
+    if(!id || !pw){ $("authError").textContent = "아이디와 비밀번호를 입력하세요."; return; }
+    if(authMode === "signup"){
+      if(!authSelectedDept){ $("authError").textContent = "소속 부서를 선택하세요."; return; }
+      window.VocAuth.signUp(id, pw, authSelectedDept).catch(function(err){
+        $("authError").textContent = authErrorMessage(err);
+      });
+    } else {
+      window.VocAuth.signIn(id, pw).catch(function(err){
+        $("authError").textContent = authErrorMessage(err);
+      });
+    }
+  });
+
+  $("logoutBtn").addEventListener("click", function(){
+    window.VocAuth.signOut();
+  });
+
+  function startAuth(){
+    function attach(){
+      window.VocAuth.onChange(function(user){
+        currentUser = user;
+        if(user){
+          $("whoAmI").textContent = user.id + "님 (" + user.department + ")";
+          $("authId").value = ""; $("authPw").value = "";
+          showView("home");
+        } else {
+          showView("auth");
+        }
+      });
+    }
+    if(window.VocAuth){ attach(); }
+    else { window.addEventListener("vocauth-ready", attach, { once:true }); }
+  }
+  startAuth();
 
   var currentTone = "reply";
   var currentStyle = "formal";
@@ -1090,8 +1188,11 @@ window.VocHelper = (function(){
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, limit
+    getFirestore, collection, doc, getDoc, setDoc, deleteDoc, onSnapshot, query, orderBy, limit
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import {
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
   var firebaseConfig = {
     apiKey: "AIzaSyA17I7KugcHbR_CWIeut_tqoSfOlkmI1w4",
@@ -1104,8 +1205,34 @@ window.VocHelper = (function(){
 
   var app = initializeApp(firebaseConfig);
   var db = getFirestore(app);
+  var auth = getAuth(app);
   var recordsCol = collection(db, "records");
   var noticesCol = collection(db, "notices");
+  var usersCol = collection(db, "users");
+
+  function idToEmail(id){ return id.trim().toLowerCase() + "@vochelper.local"; }
+
+  window.VocAuth = {
+    signUp: function(id, pw, department){
+      return createUserWithEmailAndPassword(auth, idToEmail(id), pw).then(function(cred){
+        return setDoc(doc(usersCol, cred.user.uid), { id: id.trim(), department: department });
+      });
+    },
+    signIn: function(id, pw){
+      return signInWithEmailAndPassword(auth, idToEmail(id), pw);
+    },
+    signOut: function(){ return signOut(auth); },
+    onChange: function(callback){
+      return onAuthStateChanged(auth, function(user){
+        if(!user){ callback(null); return; }
+        getDoc(doc(usersCol, user.uid)).then(function(snap){
+          var profile = snap.exists() ? snap.data() : {};
+          callback({ uid: user.uid, id: profile.id || user.email, department: profile.department || "" });
+        });
+      });
+    }
+  };
+  window.dispatchEvent(new Event("vocauth-ready"));
 
   window.VocDB = {
     subscribe: function(onChange){
