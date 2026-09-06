@@ -2153,7 +2153,7 @@ window.VocHelper = (function(){
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut,
-    GoogleAuthProvider, signInWithRedirect, getRedirectResult, setPersistence, browserSessionPersistence
+    GoogleAuthProvider, signInWithRedirect, getRedirectResult, setPersistence, browserLocalPersistence
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
   import {
     getStorage, ref as storageRef, uploadBytes, getDownloadURL
@@ -2172,7 +2172,14 @@ window.VocHelper = (function(){
   var db = getFirestore(app);
   var auth = getAuth(app);
   var storage = getStorage(app);
-  setPersistence(auth, browserSessionPersistence);
+  setPersistence(auth, browserLocalPersistence);
+
+  // 로그인 유지 시간: 앱을 껐다 켜도 로그인은 유지되지만, 최초 로그인 후 10시간이 지나면 자동 로그아웃
+  var SESSION_MS = 10 * 60 * 60 * 1000;
+  var LOGIN_AT_KEY = "vocHelper.loginAt";
+  function getLoginAt(){ return Number(localStorage.getItem(LOGIN_AT_KEY) || 0); }
+  function markLoginNow(){ localStorage.setItem(LOGIN_AT_KEY, String(Date.now())); }
+  function clearLoginAt(){ localStorage.removeItem(LOGIN_AT_KEY); }
   var recordsCol = collection(db, "records");
   var noticesCol = collection(db, "notices");
   var usersCol = collection(db, "users");
@@ -2213,12 +2220,20 @@ window.VocHelper = (function(){
         phoneLast4: (phoneLast4 || "").trim()
       }, { merge: true });
     },
-    signOut: function(){ return signOut(auth); },
+    signOut: function(){ clearLoginAt(); return signOut(auth); },
     onChange: function(callback){
       var unsubProfile = null;
       var unsubAuth = onAuthStateChanged(auth, function(user){
         if(unsubProfile){ unsubProfile(); unsubProfile = null; }
-        if(!user){ callback(null); return; }
+        if(!user){ clearLoginAt(); callback(null); return; }
+        var loginAt = getLoginAt();
+        if(!loginAt){
+          markLoginNow();
+        } else if(Date.now() - loginAt > SESSION_MS){
+          clearLoginAt();
+          signOut(auth);
+          return;
+        }
         unsubProfile = onSnapshot(doc(usersCol, user.uid), function(snap){
           var profile = snap.exists() ? snap.data() : {};
           callback({
