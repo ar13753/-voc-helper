@@ -140,6 +140,19 @@
   .home-btn:hover{ border-color:var(--brand) }
   .back-btn{ margin-bottom:14px }
   .hidden-view{ display:none }
+  .saved-item .post-photo{ max-width:100%; border-radius:8px; margin-top:6px; display:block }
+  .popup-overlay{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);
+    align-items:center; justify-content:center; z-index:1000; padding:20px;
+  }
+  .popup-overlay.show{ display:flex }
+  .popup-card{
+    background:var(--card); border-radius:14px; padding:20px;
+    max-width:420px; width:100%; max-height:80vh; overflow-y:auto;
+  }
+  .popup-item{ margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--line) }
+  .popup-item:last-child{ margin-bottom:0; padding-bottom:0; border-bottom:none }
+  .popup-item img{ max-width:100%; border-radius:8px; margin-top:6px; display:block }
 </style>
 </head>
 <body>
@@ -200,6 +213,7 @@
     <button class="home-btn" data-view="notice"><span class="num">1</span> 📢 고객 공지</button>
     <button class="home-btn" id="vocMenuBtn" data-view="voc"><span class="num">2</span> 🗣️ VOC 도우미</button>
     <button class="home-btn" data-view="pine"><span class="num">3</span> 🌲 소나무숲</button>
+    <button class="home-btn" data-view="course"><span class="num">4</span> 🏌️ 코스 제보</button>
     <button class="home-btn" id="vocRequestsBtn" data-view="vocRequests" style="display:none">🔑 VOC 접근 요청 관리</button>
     <button class="ghost" id="logoutBtn" style="margin-top:6px">로그아웃</button>
   </section>
@@ -252,6 +266,37 @@
       <p class="muted">등록된 글이 없습니다.</p>
     </div>
   </section>
+  </div>
+
+  <!-- 4. 코스 제보 -->
+  <div id="courseView" class="hidden-view">
+  <button class="ghost back-btn" data-back>← 홈으로</button>
+  <section class="card">
+    <h2>🏌️ 코스 제보 <span id="courseCount" class="tag">0건</span></h2>
+    <p class="muted" style="margin:0 0 6px">코스에 대한 조치 요청이나 공유할 내용을 사진과 함께 남겨주세요. 새 글은 전 직원에게 팝업으로 안내됩니다.</p>
+    <textarea id="courseContent" style="min-height:70px" placeholder="예) 9번홀 그린 옆 스프링클러 파손, 즉시 조치 필요"></textarea>
+    <div class="row">
+      <input type="file" id="coursePhotoInput" accept="image/*">
+    </div>
+    <div class="row">
+      <button class="action" id="courseSaveBtn">🏌️ 등록</button>
+    </div>
+    <div id="courseList" class="saved-list" style="margin-top:12px">
+      <p class="muted">등록된 글이 없습니다.</p>
+    </div>
+  </section>
+  </div>
+
+  <!-- 코스 제보 신규 알림 팝업 -->
+  <div id="coursePopupOverlay" class="popup-overlay">
+    <div class="popup-card">
+      <h2>🏌️ 새로운 코스 제보</h2>
+      <div id="coursePopupBody"></div>
+      <div class="row">
+        <button class="ghost" id="coursePopupCloseBtn">닫기</button>
+        <button class="action" id="coursePopupViewBtn">코스 제보 보기</button>
+      </div>
+    </div>
   </div>
 
   <div id="vocView" class="hidden-view">
@@ -788,6 +833,7 @@ window.VocHelper = (function(){
     $("pineView").classList.toggle("hidden-view", view !== "pine");
     $("pineAnonView").classList.toggle("hidden-view", view !== "pineAnon");
     $("pineSharedView").classList.toggle("hidden-view", view !== "pineShared");
+    $("courseView").classList.toggle("hidden-view", view !== "course");
   }
   Array.prototype.forEach.call(document.querySelectorAll(".home-btn"), function(b){
     if(b.id === "vocMenuBtn") return; // 별도 클릭 핸들러에서 승인 여부를 확인함
@@ -1493,6 +1539,107 @@ window.VocHelper = (function(){
   $("anonList").innerHTML = '<p class="muted">불러오는 중…</p>';
   $("sharedList").innerHTML = '<p class="muted">불러오는 중…</p>';
   startPineDb();
+
+  /* ---------- 4. 코스 제보 (사진 첨부 + 전 직원 팝업 알림) ---------- */
+  var COURSE_SEEN_KEY = "courseLastSeenTs";
+  function getCourseLastSeen(){ return Number(localStorage.getItem(COURSE_SEEN_KEY) || 0); }
+  function setCourseLastSeen(ts){ localStorage.setItem(COURSE_SEEN_KEY, String(ts)); }
+
+  var courseCache = [];
+
+  function renderCourse(){
+    $("courseCount").textContent = courseCache.length + "건";
+    if(courseCache.length === 0){
+      $("courseList").innerHTML = '<p class="muted">등록된 글이 없습니다.</p>';
+      return;
+    }
+    $("courseList").innerHTML = courseCache.map(function(p){
+      var who = esc(p.authorId || "") + (p.department ? " · " + esc(p.department) : "");
+      return '<div class="saved-item" data-id="' + p.id + '">'
+        + '<div class="head"><strong>' + who + '</strong><span class="when">' + esc(fmtWhen(p.ts)) + '</span></div>'
+        + (p.content ? '<div class="peek" style="-webkit-line-clamp:6">' + esc(p.content) + '</div>' : '')
+        + (p.photoUrl ? '<a href="' + p.photoUrl + '" target="_blank" rel="noopener"><img class="post-photo" src="' + p.photoUrl + '"></a>' : '')
+        + '<div class="acts"><button data-act="del" class="del">삭제</button></div>'
+        + '</div>';
+    }).join("");
+  }
+
+  function maybeShowCoursePopup(){
+    if(!currentUser || courseCache.length === 0) return;
+    var lastSeen = getCourseLastSeen();
+    if(lastSeen === 0){
+      setCourseLastSeen(courseCache[0].ts);   // 최초 실행: 기존 글은 팝업 없이 이미 본 것으로 처리
+      return;
+    }
+    var newOnes = courseCache.filter(function(p){ return p.ts > lastSeen; });
+    if(newOnes.length === 0) return;
+    $("coursePopupBody").innerHTML = newOnes.slice(0, 5).map(function(p){
+      var who = esc(p.authorId || "") + (p.department ? " · " + esc(p.department) : "");
+      return '<div class="popup-item"><div class="head"><strong>' + who + '</strong><span class="when">' + esc(fmtWhen(p.ts)) + '</span></div>'
+        + (p.content ? '<div>' + esc(p.content) + '</div>' : '')
+        + (p.photoUrl ? '<img src="' + p.photoUrl + '">' : '')
+        + '</div>';
+    }).join("");
+    $("coursePopupOverlay").classList.add("show");
+  }
+
+  function dismissCoursePopup(){
+    $("coursePopupOverlay").classList.remove("show");
+    if(courseCache.length) setCourseLastSeen(courseCache[0].ts);
+  }
+  $("coursePopupCloseBtn").addEventListener("click", dismissCoursePopup);
+  $("coursePopupViewBtn").addEventListener("click", function(){
+    dismissCoursePopup();
+    showView("course");
+  });
+
+  function startCourseDb(){
+    function attach(){
+      window.CourseDB.subscribe(function(list){
+        courseCache = list;
+        renderCourse();
+        maybeShowCoursePopup();
+      });
+    }
+    if(window.CourseDB){ attach(); }
+    else { window.addEventListener("coursedb-ready", attach, { once:true }); }
+  }
+
+  $("courseSaveBtn").addEventListener("click", function(){
+    var content = $("courseContent").value.trim();
+    var file = $("coursePhotoInput").files[0];
+    if(!content && !file){ flash("내용이나 사진을 첨부하세요"); return; }
+    var id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    var post = {
+      ts: Date.now(),
+      content: content,
+      authorId: currentUser ? currentUser.id : "",
+      department: currentUser ? currentUser.department : ""
+    };
+    $("courseSaveBtn").disabled = true;
+    var uploadPromise = file ? window.CourseDB.uploadPhoto(id, file) : Promise.resolve(null);
+    uploadPromise.then(function(photo){
+      if(photo){ post.photoUrl = photo.url; post.photoPath = photo.path; }
+      return window.CourseDB.save(id, post);
+    }).then(function(){
+      flash("등록됨 ✓");
+      $("courseContent").value = "";
+      $("coursePhotoInput").value = "";
+    }).catch(function(){ flash("등록 실패"); }).finally(function(){
+      $("courseSaveBtn").disabled = false;
+    });
+  });
+
+  $("courseList").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button[data-act='del']"); if(!btn) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    if(confirm("이 글을 삭제하시겠습니까?")){
+      window.CourseDB.remove(item.getAttribute("data-id")).catch(function(){ flash("삭제 실패"); });
+    }
+  });
+
+  $("courseList").innerHTML = '<p class="muted">불러오는 중…</p>';
+  startCourseDb();
 })();
 </script>
 <script type="module">
@@ -1504,6 +1651,9 @@ window.VocHelper = (function(){
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut,
     GoogleAuthProvider, signInWithRedirect, getRedirectResult, setPersistence, browserSessionPersistence
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import {
+    getStorage, ref as storageRef, uploadBytes, getDownloadURL
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
   var firebaseConfig = {
     apiKey: "AIzaSyA17I7KugcHbR_CWIeut_tqoSfOlkmI1w4",
@@ -1517,12 +1667,14 @@ window.VocHelper = (function(){
   var app = initializeApp(firebaseConfig);
   var db = getFirestore(app);
   var auth = getAuth(app);
+  var storage = getStorage(app);
   setPersistence(auth, browserSessionPersistence);
   var recordsCol = collection(db, "records");
   var noticesCol = collection(db, "notices");
   var usersCol = collection(db, "users");
   var anonPostsCol = collection(db, "anonPosts");
   var sharedPostsCol = collection(db, "sharedPosts");
+  var coursePostsCol = collection(db, "coursePosts");
 
   function idToEmail(id){ return id.trim().toLowerCase() + "@vochelper.local"; }
 
@@ -1658,6 +1810,33 @@ window.VocHelper = (function(){
     removeShared: function(id){ return deleteDoc(doc(sharedPostsCol, id)); }
   };
   window.dispatchEvent(new Event("pinedb-ready"));
+
+  window.CourseDB = {
+    subscribe: function(onChange){
+      var q = query(coursePostsCol, orderBy("ts", "desc"), limit(200));
+      return onSnapshot(q, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          data.id = d.id;
+          list.push(data);
+        });
+        onChange(list);
+      }, function(err){ console.error("Firestore subscribe error", err); });
+    },
+    save: function(id, data){ return setDoc(doc(coursePostsCol, id), data); },
+    remove: function(id){ return deleteDoc(doc(coursePostsCol, id)); },
+    uploadPhoto: function(id, file){
+      var path = "coursePhotos/" + id + "-" + file.name;
+      var fileRef = storageRef(storage, path);
+      return uploadBytes(fileRef, file).then(function(){
+        return getDownloadURL(fileRef);
+      }).then(function(url){
+        return { url: url, path: path };
+      });
+    }
+  };
+  window.dispatchEvent(new Event("coursedb-ready"));
 </script>
 <script>
   if("serviceWorker" in navigator){
