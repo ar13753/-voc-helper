@@ -216,6 +216,12 @@
 
   <div id="vocView" class="hidden-view">
   <button class="ghost back-btn" data-back>← 홈으로</button>
+  <div class="tones" id="vocTabs" role="group" aria-label="VOC 도우미 화면 전환">
+    <button class="tone" id="vocTabForm" aria-pressed="true">✏️ 새 VOC 작성</button>
+    <button class="tone" id="vocTabList" aria-pressed="false">📁 저장된 기록</button>
+  </div>
+
+  <div id="vocFormCard">
   <div class="grid">
     <!-- 입력 -->
     <section class="card">
@@ -297,10 +303,11 @@
       </div>
     </section>
   </div>
+  </div>
 
   <!-- 저장된 기록 -->
-  <section class="card" style="margin-top:16px">
-    <h2>4. 저장된 기록 <span id="savedCount" class="tag">0건</span></h2>
+  <section class="card hidden-view" id="vocListCard">
+    <h2>저장된 기록 <span id="savedCount" class="tag">0건</span></h2>
     <p class="muted" style="margin:0 0 6px">저장한 VOC와 회신 초안은 이 앱을 여는 모든 기기(PC · 모바일)에서 실시간으로 함께 보입니다.</p>
     <label style="margin-top:6px">내보낼 기간 (VOC 접수일 기준 · 비워두면 전체)</label>
     <div class="row">
@@ -951,6 +958,15 @@ window.VocHelper = (function(){
     $("toneLabel").textContent = VocHelper.TONE_NAME[currentTone];
   }
 
+  function showVocTab(tab){
+    $("vocTabForm").setAttribute("aria-pressed", tab === "form" ? "true" : "false");
+    $("vocTabList").setAttribute("aria-pressed", tab === "list" ? "true" : "false");
+    $("vocFormCard").classList.toggle("hidden-view", tab !== "form");
+    $("vocListCard").classList.toggle("hidden-view", tab !== "list");
+  }
+  $("vocTabForm").addEventListener("click", function(){ showVocTab("form"); });
+  $("vocTabList").addEventListener("click", function(){ showVocTab("list"); });
+
   function run(){
     var text = $("vocInput").value;
     if(!text.trim()){
@@ -1128,6 +1144,7 @@ window.VocHelper = (function(){
         $("draftOut").value = rec.draft;
         autoGrow($("draftOut"));
       }
+      showVocTab("form");
       window.scrollTo({ top:0, behavior:"smooth" });
     }
   });
