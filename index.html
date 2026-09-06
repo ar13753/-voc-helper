@@ -154,6 +154,63 @@
   .popup-item{ margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--line) }
   .popup-item:last-child{ margin-bottom:0; padding-bottom:0; border-bottom:none }
   .popup-item img{ max-width:100%; border-radius:8px; margin-top:6px; display:block }
+
+  /* ---- 케어보드 / 하단 탭바 ---- */
+  .wrap{ padding-bottom:84px }
+  .tabbar{
+    position:fixed; bottom:0; left:0; right:0; height:60px; z-index:40;
+    background:var(--card); border-top:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-around; padding:0 6px;
+  }
+  .tabbar.hidden-view{ display:none }
+  .tab-btn{
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    background:none; border:0; font:inherit; font-size:11px; color:var(--muted);
+    padding:6px 4px; cursor:pointer; flex:1;
+  }
+  .tab-btn.active{ color:var(--brand); font-weight:700 }
+  .tab-btn .tab-icon{ font-size:18px; line-height:1 }
+
+  .care-summary{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px }
+  .care-widget{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:12px 14px; display:flex; align-items:center; gap:12px;
+  }
+  .care-widget .cw-icon{ font-size:22px; flex-shrink:0 }
+  .care-widget .cw-label{ font-size:11px; color:var(--muted); margin:0 0 2px; font-weight:600 }
+  .care-widget .cw-main{ font-size:14px; font-weight:700; color:var(--ink); margin:0 }
+  .care-widget .cw-sub{ font-size:12px; color:var(--muted); margin:2px 0 0 }
+  .care-widget.accident .cw-main{ color:var(--danger) }
+  .care-widget.accident.zero .cw-main{ color:var(--ok) }
+
+  .care-feed{ display:flex; flex-direction:column; gap:12px }
+  .care-card{ background:var(--card); border-radius:14px; padding:14px; }
+  .care-card.urgent{ border:2px solid var(--danger) }
+  .care-card.normal{ border:1px solid var(--line) }
+  .care-card-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px }
+  .care-badge{ font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px; }
+  .care-badge-urgent{ background:var(--danger); color:#fff }
+  .care-badge-vip{ background:var(--warn); color:#fff }
+  .care-badge-share{ background:var(--chip); color:var(--muted) }
+  .care-time{ font-size:11px; color:var(--muted); font-weight:500 }
+  .care-title{ font-size:15px; font-weight:800; color:var(--ink); margin:0 0 6px; line-height:1.4 }
+  .care-body{ font-size:13px; line-height:1.6; margin:0 0 12px }
+  .care-body.highlight{ background:var(--soft); padding:10px; border-radius:8px; color:var(--ink) }
+  .care-body.plain{ color:var(--muted) }
+  .care-footer{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; padding-top:8px; border-top:1px solid var(--line); font-size:11.5px; color:var(--muted) }
+  .care-ack-btn{ background:var(--brand); color:var(--brand-ink); border:0; padding:7px 12px; border-radius:8px; font-weight:700; font-size:11.5px; font:inherit; cursor:pointer }
+  .care-ack-btn.acked{ background:var(--chip); color:var(--brand) }
+  .care-resolve-btn{ background:var(--soft); color:var(--muted); border:1px solid var(--line); padding:7px 12px; border-radius:8px; font-weight:600; font-size:11.5px; font:inherit; cursor:pointer }
+  .care-done{ color:var(--brand); font-weight:700 }
+  .care-del{ background:none; border:0; color:var(--danger); font-size:11px; cursor:pointer; padding:0; font:inherit }
+
+  .fab{
+    position:fixed; bottom:74px; right:16px; z-index:35;
+    background:var(--brand); color:var(--brand-ink); border:0; font:inherit;
+    font-weight:700; font-size:13px; padding:12px 16px; border-radius:999px;
+    display:flex; align-items:center; gap:8px; box-shadow:0 10px 20px rgba(0,0,0,0.25); cursor:pointer;
+  }
+  .fab .fab-plus{ font-size:18px; line-height:1 }
 </style>
 </head>
 <body>
@@ -176,6 +233,13 @@
     <div class="row">
       <input type="password" id="authPw" placeholder="비밀번호" autocomplete="current-password">
     </div>
+    <div id="authNameRow" style="display:none">
+      <label style="margin-top:6px">이름 / 휴대폰 뒷자리 (동명이인 구분용)</label>
+      <div class="row">
+        <input type="text" id="authRealName" placeholder="이름 (실명)">
+        <input type="text" id="authPhone4" placeholder="휴대폰 뒷자리 4자리" maxlength="4" inputmode="numeric">
+      </div>
+    </div>
     <div id="authDeptRow" style="display:none">
       <label style="margin-top:6px">소속 부서</label>
       <div class="tones" id="authDepts" role="group" aria-label="소속 부서">
@@ -196,7 +260,12 @@
   <section id="deptPickView" class="card hidden-view">
     <h2>소속 부서를 선택해주세요</h2>
     <p class="muted" style="margin:0 0 6px">처음 로그인하셨네요. 알림을 부서별로 보내드리기 위해 필요해요.</p>
-    <div class="tones" id="deptPickGroup" role="group" aria-label="소속 부서">
+    <label style="margin-top:6px">이름 / 휴대폰 뒷자리 (동명이인 구분용)</label>
+    <div class="row">
+      <input type="text" id="deptPickRealName" placeholder="이름 (실명)">
+      <input type="text" id="deptPickPhone4" placeholder="휴대폰 뒷자리 4자리" maxlength="4" inputmode="numeric">
+    </div>
+    <div class="tones" id="deptPickGroup" role="group" aria-label="소속 부서" style="margin-top:12px">
       <button class="tone" data-dept="프론트" aria-pressed="false">프론트</button>
       <button class="tone" data-dept="예약" aria-pressed="false">예약</button>
       <button class="tone" data-dept="캐디" aria-pressed="false">캐디</button>
@@ -208,16 +277,97 @@
     <p id="deptPickError" class="muted" style="color:var(--danger); min-height:1.2em"></p>
   </section>
 
-  <!-- 홈 메뉴 -->
+  <!-- 실시간 케어 보드 (홈) -->
+  <div id="careView" class="hidden-view">
+    <div class="care-summary" id="careSummary"></div>
+    <div class="tones" id="courseFilter" role="group" aria-label="코스 필터">
+      <button class="tone" data-course="ALL" aria-pressed="true">전체 코스</button>
+      <button class="tone" data-course="마운틴" aria-pressed="false">마운틴 코스</button>
+      <button class="tone" data-course="밸리" aria-pressed="false">밸리 코스</button>
+      <button class="tone" data-course="레이크" aria-pressed="false">레이크 코스</button>
+    </div>
+    <div id="careFeed" class="care-feed" style="margin-top:12px"><p class="muted">불러오는 중…</p></div>
+  </div>
+
+  <button class="fab" id="careFabBtn" style="display:none"><span class="fab-plus">+</span><span>케어 공지 등록</span></button>
+
+  <div id="carePopupOverlay" class="popup-overlay">
+    <div class="popup-card">
+      <h2>케어 공지 등록</h2>
+      <label>유형</label>
+      <div class="tones" id="careTypeGroup" role="group" aria-label="공지 유형">
+        <button class="tone" data-type="urgent" aria-pressed="true">🚨 긴급 케어 요청</button>
+        <button class="tone" data-type="vip" aria-pressed="false">⭐ VIP 케어 공유</button>
+        <button class="tone" data-type="share" aria-pressed="false">💬 일반 공유</button>
+      </div>
+      <label style="margin-top:10px">코스</label>
+      <div class="tones" id="careCourseGroup" role="group" aria-label="코스">
+        <button class="tone" data-course="공통" aria-pressed="true">공통</button>
+        <button class="tone" data-course="마운틴" aria-pressed="false">마운틴</button>
+        <button class="tone" data-course="밸리" aria-pressed="false">밸리</button>
+        <button class="tone" data-course="레이크" aria-pressed="false">레이크</button>
+      </div>
+      <label style="margin-top:10px">제목</label>
+      <input type="text" id="careTitle" placeholder="예) Lake 4번 홀 티박스 - 고객 넘어짐">
+      <label style="margin-top:10px">내용</label>
+      <textarea id="careContent" style="min-height:90px" placeholder="상황과 조치 내용을 적어주세요"></textarea>
+      <div class="row">
+        <button class="ghost" id="carePopupCloseBtn">취소</button>
+        <button class="action" id="careSaveBtn">등록</button>
+      </div>
+      <p id="careFormMsg" class="muted" style="min-height:1.2em"></p>
+    </div>
+  </div>
+
+  <!-- 긴급 케어 신규 등록 알림 팝업 -->
+  <div id="careAlertOverlay" class="popup-overlay">
+    <div class="popup-card">
+      <h2>🚨 새로운 긴급 케어 요청</h2>
+      <div id="careAlertBody"></div>
+      <div class="row">
+        <button class="ghost" id="careAlertCloseBtn">닫기</button>
+        <button class="action" id="careAlertViewBtn">케어보드 보기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 하단 탭바 -->
+  <nav class="tabbar hidden-view" id="mainTabbar">
+    <button class="tab-btn" data-tab="care"><span class="tab-icon">📢</span><span>케어보드</span></button>
+    <button class="tab-btn" id="tabVocBtn"><span class="tab-icon">💬</span><span>VOC 도우미</span></button>
+    <button class="tab-btn" data-tab="pine"><span class="tab-icon">🎋</span><span>대나무숲</span></button>
+    <button class="tab-btn" data-tab="home"><span class="tab-icon">👤</span><span>마이페이지</span></button>
+  </nav>
+
+  <!-- 마이페이지 (기존 홈 메뉴) -->
   <section id="homeView" class="card home-menu hidden-view">
-    <p class="muted" id="whoAmI" style="margin:0 0 4px"></p>
+    <h2 style="margin:0 0 4px">마이페이지</h2>
+    <p class="muted" id="whoAmI" style="margin:0 0 12px"></p>
     <button class="home-btn" data-view="notice"><span class="num">1</span> 📢 고객 공지</button>
-    <button class="home-btn" id="vocMenuBtn" data-view="voc"><span class="num">2</span> 🗣️ VOC 도우미</button>
-    <button class="home-btn" data-view="pine"><span class="num">3</span> 🌲 소나무숲</button>
-    <button class="home-btn" data-view="course"><span class="num">4</span> 🏌️ 코스 제보</button>
+    <button class="home-btn" data-view="course"><span class="num">2</span> 🏌️ 코스 제보</button>
     <button class="home-btn" id="vocRequestsBtn" data-view="vocRequests" style="display:none">🔑 VOC 접근 요청 관리</button>
+    <button class="home-btn" id="scheduleUploadBtn" data-view="schedule" style="display:none">📅 캐디 배정 스케줄 업로드</button>
     <button class="ghost" id="logoutBtn" style="margin-top:6px">로그아웃</button>
   </section>
+
+  <!-- 관리자: 캐디 배정 스케줄 업로드 -->
+  <div id="scheduleView" class="hidden-view">
+  <button class="ghost back-btn" data-back>← 마이페이지로</button>
+  <section class="card">
+    <h2>📅 캐디 배정 스케줄 업로드</h2>
+    <p class="muted" style="margin:0 0 6px">같은 날짜로 다시 업로드하면 기존 내용을 덮어씁니다.</p>
+    <label>적용 날짜 (익일 기준으로 입력)</label>
+    <input type="date" id="scheduleDate">
+    <label style="margin-top:10px">팀 목록 (한 줄에 한 팀)</label>
+    <p class="muted" style="margin:2px 0 6px">형식: 티오프시간,코스,캐디이름,예약자명 · 동명이인이 있으면 캐디이름 뒤에 (전화뒷4자리)를 붙이세요.<br>예) 07:42,마운틴,김솔이,홍길동 / 08:10,밸리,박정희(5678),이영수</p>
+    <textarea id="scheduleRaw" style="min-height:220px" placeholder="07:42,마운틴,김솔이,홍길동
+08:10,밸리,박정희(5678),이영수"></textarea>
+    <div class="row">
+      <button class="action" id="scheduleSaveBtn">업로드</button>
+    </div>
+    <p id="scheduleMsg" class="muted" style="min-height:1.2em"></p>
+  </section>
+  </div>
 
   <div id="vocRequestsView" class="hidden-view">
   <button class="ghost back-btn" data-back>← 홈으로</button>
@@ -230,22 +380,22 @@
   </section>
   </div>
 
-  <!-- 소나무숲: 직원 커뮤니티 서브 메뉴 -->
+  <!-- 대나무숲: 직원 커뮤니티 서브 메뉴 -->
   <section id="pineView" class="card home-menu hidden-view">
-    <button class="ghost back-btn" data-back style="margin-bottom:10px">← 홈으로</button>
+    <h2 style="margin:0 0 10px">🎋 대나무숲</h2>
     <button class="home-btn" data-view="pineAnon"><span class="num">1</span> 🕵️ 익명제보</button>
     <button class="home-btn" data-view="pineShared"><span class="num">2</span> 📌 공유제보</button>
   </section>
 
-  <!-- 소나무숲 1. 익명제보 -->
+  <!-- 대나무숲 1. 익명제보 -->
   <div id="pineAnonView" class="hidden-view">
-  <button class="ghost back-btn" data-back="pine">← 소나무숲으로</button>
+  <button class="ghost back-btn" data-back="pine">← 대나무숲으로</button>
   <section class="card">
     <h2>🕵️ 익명제보 <span id="anonCount" class="tag">0건</span></h2>
     <p class="muted" style="margin:0 0 6px">작성자가 표시되지 않는 익명 게시판입니다. 자유롭게 의견이나 제보를 남겨주세요.</p>
     <textarea id="anonContent" style="min-height:70px" placeholder="자유롭게 작성해주세요 (작성자는 표시되지 않습니다)"></textarea>
     <div class="row">
-      <button class="action" id="anonSaveBtn">🌲 익명으로 남기기</button>
+      <button class="action" id="anonSaveBtn">🎋 익명으로 남기기</button>
     </div>
     <div id="anonList" class="saved-list" style="margin-top:12px">
       <p class="muted">등록된 글이 없습니다.</p>
@@ -253,9 +403,9 @@
   </section>
   </div>
 
-  <!-- 소나무숲 2. 공유제보 -->
+  <!-- 대나무숲 2. 공유제보 -->
   <div id="pineSharedView" class="hidden-view">
-  <button class="ghost back-btn" data-back="pine">← 소나무숲으로</button>
+  <button class="ghost back-btn" data-back="pine">← 대나무숲으로</button>
   <section class="card">
     <h2>📌 공유제보 <span id="sharedCount" class="tag">0건</span></h2>
     <p class="muted" style="margin:0 0 6px">이름/부서가 함께 표시되는 공유 게시판입니다.</p>
@@ -824,25 +974,39 @@ window.VocHelper = (function(){
   var $ = function(id){ return document.getElementById(id); };
 
   /* ---------- 홈 메뉴 / 화면 전환 ---------- */
+  var TAB_VIEWS = { care:"care", voc:"voc", pine:"pine", home:"home" };
   function showView(view){
     $("authView").classList.toggle("hidden-view", view !== "auth");
     $("deptPickView").classList.toggle("hidden-view", view !== "deptpick");
+    $("careView").classList.toggle("hidden-view", view !== "care");
     $("homeView").classList.toggle("hidden-view", view !== "home");
     $("vocView").classList.toggle("hidden-view", view !== "voc");
     $("noticeView").classList.toggle("hidden-view", view !== "notice");
     $("vocRequestsView").classList.toggle("hidden-view", view !== "vocRequests");
+    $("scheduleView").classList.toggle("hidden-view", view !== "schedule");
     $("pineView").classList.toggle("hidden-view", view !== "pine");
     $("pineAnonView").classList.toggle("hidden-view", view !== "pineAnon");
     $("pineSharedView").classList.toggle("hidden-view", view !== "pineShared");
     $("courseView").classList.toggle("hidden-view", view !== "course");
+
+    var showTabbar = !!TAB_VIEWS[view];
+    $("mainTabbar").classList.toggle("hidden-view", !showTabbar);
+    $("careFabBtn").style.display = view === "care" ? "" : "none";
+    Array.prototype.forEach.call(document.querySelectorAll("#mainTabbar .tab-btn"), function(b){
+      var tab = b.dataset.tab || (b.id === "tabVocBtn" ? "voc" : "");
+      b.classList.toggle("active", tab === view);
+    });
   }
   Array.prototype.forEach.call(document.querySelectorAll(".home-btn"), function(b){
-    if(b.id === "vocMenuBtn") return; // 별도 클릭 핸들러에서 승인 여부를 확인함
     b.addEventListener("click", function(){ showView(b.dataset.view); });
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-back]"), function(b){
     b.addEventListener("click", function(){ showView(b.dataset.back || "home"); });
   });
+  Array.prototype.forEach.call(document.querySelectorAll("#mainTabbar .tab-btn[data-tab]"), function(b){
+    b.addEventListener("click", function(){ showView(b.dataset.tab); });
+  });
+  $("tabVocBtn").addEventListener("click", function(){ goToVoc(); });
 
   /* ---------- 로그인 / 회원가입 (Firebase Authentication) ---------- */
   var currentUser = null;
@@ -863,6 +1027,7 @@ window.VocHelper = (function(){
     $("authSubmitBtn").textContent = authMode === "login" ? "로그인" : "가입하기";
     $("authToggleBtn").textContent = authMode === "login" ? "계정이 없으신가요? 회원가입" : "이미 계정이 있으신가요? 로그인";
     $("authDeptRow").style.display = authMode === "signup" ? "" : "none";
+    $("authNameRow").style.display = authMode === "signup" ? "" : "none";
     $("authError").textContent = "";
   });
 
@@ -879,6 +1044,8 @@ window.VocHelper = (function(){
     return "오류가 발생했습니다 (" + code + ")";
   }
 
+  function isValidPhone4(s){ return /^\d{4}$/.test(s || ""); }
+
   $("authSubmitBtn").addEventListener("click", function(){
     var id = $("authId").value.trim();
     var pw = $("authPw").value;
@@ -886,7 +1053,14 @@ window.VocHelper = (function(){
     if(!id || !pw){ $("authError").textContent = "아이디와 비밀번호를 입력하세요."; return; }
     if(authMode === "signup"){
       if(!authSelectedDept){ $("authError").textContent = "소속 부서를 선택하세요."; return; }
-      window.VocAuth.signUp(id, pw, authSelectedDept).catch(function(err){
+      var realName = $("authRealName").value.trim();
+      var phone4 = $("authPhone4").value.trim();
+      if(!realName){ $("authError").textContent = "이름을 입력하세요."; return; }
+      if(authSelectedDept === "캐디" && !isValidPhone4(phone4)){
+        $("authError").textContent = "휴대폰 뒷자리 4자리를 정확히 입력하세요.";
+        return;
+      }
+      window.VocAuth.signUp(id, pw, authSelectedDept, realName, phone4).catch(function(err){
         $("authError").textContent = authErrorMessage(err);
       });
     } else {
@@ -921,17 +1095,27 @@ window.VocHelper = (function(){
   });
   $("deptPickSubmitBtn").addEventListener("click", function(){
     if(!deptPickSelected){ $("deptPickError").textContent = "소속 부서를 선택하세요."; return; }
-    window.VocAuth.setDepartment(deptPickSelected).then(function(){
+    var realName = $("deptPickRealName").value.trim();
+    var phone4 = $("deptPickPhone4").value.trim();
+    if(!realName){ $("deptPickError").textContent = "이름을 입력하세요."; return; }
+    if(deptPickSelected === "캐디" && !isValidPhone4(phone4)){
+      $("deptPickError").textContent = "휴대폰 뒷자리 4자리를 정확히 입력하세요.";
+      return;
+    }
+    window.VocAuth.setDepartment(deptPickSelected, realName, phone4).then(function(){
       currentUser.department = deptPickSelected;
+      currentUser.realName = realName;
+      currentUser.phoneLast4 = phone4;
       $("whoAmI").textContent = currentUser.id + "님 (" + currentUser.department + ")";
       $("vocRequestsBtn").style.display = currentUser.role === "admin" ? "" : "none";
-      showView("home");
+      $("scheduleUploadBtn").style.display = currentUser.role === "admin" ? "" : "none";
+      showView("care");
     }).catch(function(err){
       $("deptPickError").textContent = authErrorMessage(err);
     });
   });
 
-  $("vocMenuBtn").addEventListener("click", function(){
+  function goToVoc(){
     if(!currentUser) return;
     if(currentUser.role === "admin" || currentUser.vocAccess === "approved"){
       showView("voc");
@@ -946,7 +1130,7 @@ window.VocHelper = (function(){
       currentUser.vocAccess = "pending";
       flash("승인 요청을 보냈습니다. 관리자 승인을 기다려주세요");
     });
-  });
+  }
 
   var vocReqCache = [];
   function renderVocRequests(){
@@ -994,7 +1178,9 @@ window.VocHelper = (function(){
           } else {
             $("whoAmI").textContent = user.id + "님 (" + user.department + ")";
             $("vocRequestsBtn").style.display = user.role === "admin" ? "" : "none";
-            showView("home");
+            $("scheduleUploadBtn").style.display = user.role === "admin" ? "" : "none";
+            showView("care");
+            startCareBoard();
           }
         } else {
           showView("auth");
@@ -1451,7 +1637,7 @@ window.VocHelper = (function(){
   $("savedList").innerHTML = '<p class="muted">기록 불러오는 중…</p>';
   startVocDb();   // 시작 시 Firestore에서 저장 목록을 불러와 실시간으로 동기화
 
-  /* ---------- 소나무숲 (익명제보 / 공유제보) ---------- */
+  /* ---------- 대나무숲 (익명제보 / 공유제보) ---------- */
   var anonCache = [];
   var sharedCache = [];
 
@@ -1641,12 +1827,281 @@ window.VocHelper = (function(){
 
   $("courseList").innerHTML = '<p class="muted">불러오는 중…</p>';
   startCourseDb();
+
+  /* ---------- 실시간 케어보드 ---------- */
+  var careCache = [];
+  var careFilter = "ALL";
+  var careStarted = false;
+  var weatherState = null;
+  var scheduleForTomorrow = null;
+
+  function todayDateStr(offsetDays){
+    var d = new Date();
+    d.setDate(d.getDate() + (offsetDays || 0));
+    function p(n){ return (n<10?"0":"") + n; }
+    return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
+  }
+
+  function fmtCareTime(ts){
+    var d = new Date(ts);
+    function p(n){ return (n<10?"0":"") + n; }
+    var hhmm = p(d.getHours()) + ":" + p(d.getMinutes());
+    var diffMin = Math.round((Date.now() - ts) / 60000);
+    var rel;
+    if(diffMin < 1) rel = "방금 전";
+    else if(diffMin < 60) rel = diffMin + "분 전";
+    else if(diffMin < 60 * 24) rel = Math.floor(diffMin / 60) + "시간 전";
+    else rel = Math.floor(diffMin / 60 / 24) + "일 전";
+    return hhmm + " (" + rel + ")";
+  }
+
+  // "이름(전화뒷4자리)" 형태에서 이름/전화번호를 분리 (동명이인 구분용)
+  function parseCaddieField(raw){
+    raw = (raw || "").trim();
+    var m = raw.match(/^(.*?)\s*\((\d{4})\)\s*$/);
+    if(m) return { name: m[1].trim(), phone: m[2] };
+    return { name: raw, phone: "" };
+  }
+
+  function parseScheduleRaw(raw){
+    return raw.split("\n").map(function(line){ return line.trim(); }).filter(Boolean).map(function(line){
+      var parts = line.split(",").map(function(s){ return s.trim(); });
+      var caddie = parseCaddieField(parts[2] || "");
+      return {
+        teeTime: parts[0] || "",
+        course: parts[1] || "",
+        caddieName: caddie.name,
+        caddiePhone: caddie.phone,
+        customerName: parts[3] || ""
+      };
+    }).filter(function(r){ return r.teeTime || r.caddieName; });
+  }
+
+  var WEATHER_CODE_MAP = {
+    0:["☀️","맑음"], 1:["🌤️","대체로 맑음"], 2:["⛅","구름 조금"], 3:["☁️","흐림"],
+    45:["🌫️","안개"], 48:["🌫️","안개"],
+    51:["🌦️","약한 이슬비"], 53:["🌦️","이슬비"], 55:["🌧️","강한 이슬비"],
+    61:["🌧️","약한 비"], 63:["🌧️","비"], 65:["🌧️","강한 비"],
+    71:["🌨️","약한 눈"], 73:["🌨️","눈"], 75:["❄️","강한 눈"],
+    80:["🌦️","소나기"], 81:["🌦️","소나기"], 82:["⛈️","강한 소나기"],
+    95:["⛈️","뇌우"], 96:["⛈️","뇌우(우박)"], 99:["⛈️","강한 뇌우"]
+  };
+  function fetchWeather(){
+    fetch("https://api.open-meteo.com/v1/forecast?latitude=37.836&longitude=127.192&current=temperature_2m,weather_code,wind_speed_10m&timezone=Asia%2FSeoul")
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var c = data && data.current;
+        if(!c) return;
+        var map = WEATHER_CODE_MAP[c.weather_code] || ["🌡️","-"];
+        weatherState = { tempC: Math.round(c.temperature_2m), wind: Math.round(c.wind_speed_10m), icon: map[0], desc: map[1] };
+        renderCareSummary();
+      })
+      .catch(function(){ /* 날씨 조회 실패 시 위젯은 "불러오는 중" 상태로 남겨둠 */ });
+  }
+
+  function renderCareSummary(){
+    var parts = [];
+
+    if(currentUser && currentUser.department === "캐디"){
+      var rows = [];
+      if(scheduleForTomorrow && scheduleForTomorrow.rows){
+        rows = scheduleForTomorrow.rows.filter(function(r){
+          return r.caddieName === (currentUser.realName || "").trim()
+            && (!r.caddiePhone || r.caddiePhone === currentUser.phoneLast4);
+        });
+      }
+      if(rows.length){
+        var body = rows.map(function(r){
+          return '<p class="cw-main">' + esc(r.teeTime) + ' · ' + esc(r.course) + '</p><p class="cw-sub">예약자: ' + esc(r.customerName || "-") + '</p>';
+        }).join('<div style="height:8px"></div>');
+        parts.push('<div class="care-widget"><span class="cw-icon">🏌️</span><div><p class="cw-label">내일(' + esc(scheduleForTomorrow.date) + ') 내 배정</p>' + body + '</div></div>');
+      } else {
+        parts.push('<div class="care-widget"><span class="cw-icon">🏌️</span><div><p class="cw-label">내일 배정</p><p class="cw-main" style="color:var(--muted); font-weight:600">아직 배정 스케줄이 없습니다</p></div></div>');
+      }
+    }
+
+    if(weatherState){
+      parts.push('<div class="care-widget"><span class="cw-icon">' + weatherState.icon + '</span><div><p class="cw-label">오늘 날씨 · 포천 가산</p><p class="cw-main">' + weatherState.tempC + '°C · ' + esc(weatherState.desc) + '</p><p class="cw-sub">바람 ' + weatherState.wind + 'm/s</p></div></div>');
+    } else {
+      parts.push('<div class="care-widget"><span class="cw-icon">🌤️</span><div><p class="cw-label">오늘 날씨</p><p class="cw-main" style="color:var(--muted); font-weight:600">불러오는 중…</p></div></div>');
+    }
+
+    var todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    var accidentCount = careCache.filter(function(p){ return p.type === "urgent" && p.ts >= todayStart.getTime(); }).length;
+    parts.push('<div class="care-widget accident' + (accidentCount === 0 ? ' zero' : '') + '"><span class="cw-icon">' + (accidentCount === 0 ? "✅" : "🚨") + '</span><div><p class="cw-label">오늘 안전사고</p><p class="cw-main">' + accidentCount + '건</p></div></div>');
+
+    $("careSummary").innerHTML = parts.join("");
+  }
+
+  function careCardHtml(p){
+    var isUrgent = p.type === "urgent";
+    var badge = isUrgent
+      ? '<span class="care-badge care-badge-urgent">🚨 긴급 케어 요청</span>'
+      : p.type === "vip"
+        ? '<span class="care-badge care-badge-vip">⭐ VIP 케어 공유</span>'
+        : '<span class="care-badge care-badge-share">💬 일반 공유</span>';
+    var ackBy = p.ackBy || [];
+    var iAcked = !!(currentUser && ackBy.indexOf(currentUser.uid) > -1);
+    var actionHtml;
+    if(isUrgent){
+      actionHtml = '<button class="care-ack-btn' + (iAcked ? ' acked' : '') + '" data-act="ack" data-id="' + p.id + '">'
+        + (iAcked ? '확인함 ✓ (' : '확인 완료 (') + ackBy.length + '명)</button>';
+    } else if(p.resolved){
+      actionHtml = '<span class="care-done">조치 완료</span>';
+    } else {
+      actionHtml = '<button class="care-resolve-btn" data-act="resolve" data-id="' + p.id + '">조치 완료로 표시</button>';
+    }
+    var who = esc((p.department || "") + (p.department && p.authorName ? " · " : "") + (p.authorName || ""));
+    var canDelete = currentUser && (currentUser.role === "admin" || p.authorId === currentUser.uid);
+    return '<div class="care-card ' + (isUrgent ? "urgent" : "normal") + '">'
+      + '<div class="care-card-top">' + badge + '<span class="care-time">' + fmtCareTime(p.ts) + '</span></div>'
+      + '<h3 class="care-title">' + esc(p.title || "") + (p.course && p.course !== "공통" ? ' <span class="tag">' + esc(p.course) + '</span>' : "") + '</h3>'
+      + '<p class="care-body ' + (isUrgent ? "highlight" : "plain") + '">' + esc(p.content || "") + '</p>'
+      + '<div class="care-footer"><span>등록: ' + (who || "-") + '</span>' + actionHtml + '</div>'
+      + (canDelete ? '<div style="text-align:right; margin-top:6px"><button class="care-del" data-act="del" data-id="' + p.id + '">삭제</button></div>' : "")
+      + '</div>';
+  }
+
+  function renderCareFeed(){
+    var list = careCache.filter(function(p){
+      if(careFilter === "ALL") return true;
+      return p.course === careFilter || p.course === "공통";
+    });
+    $("careFeed").innerHTML = list.length === 0
+      ? '<p class="muted">등록된 케어 공지가 없습니다.</p>'
+      : list.map(careCardHtml).join("");
+    renderCareSummary();
+  }
+
+  $("courseFilter").addEventListener("click", function(ev){
+    var b = ev.target.closest(".tone"); if(!b) return;
+    pickInGroup(this, b);
+    careFilter = b.dataset.course;
+    renderCareFeed();
+  });
+
+  $("careFeed").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button[data-act]"); if(!btn) return;
+    var id = btn.getAttribute("data-id");
+    var post = careCache.filter(function(p){ return p.id === id; })[0];
+    if(!post) return;
+    var act = btn.getAttribute("data-act");
+    if(act === "ack"){
+      var ackBy = post.ackBy || [];
+      var acked = currentUser && ackBy.indexOf(currentUser.uid) > -1;
+      window.CareBoardDB.toggleAck(id, currentUser.uid, acked).catch(function(){ flash("처리 실패"); });
+    } else if(act === "resolve"){
+      window.CareBoardDB.setResolved(id, true).catch(function(){ flash("처리 실패"); });
+    } else if(act === "del"){
+      if(confirm("이 공지를 삭제하시겠습니까?")){
+        window.CareBoardDB.remove(id).catch(function(){ flash("삭제 실패"); });
+      }
+    }
+  });
+
+  $("careFabBtn").addEventListener("click", function(){ $("carePopupOverlay").classList.add("show"); });
+  $("carePopupCloseBtn").addEventListener("click", function(){ $("carePopupOverlay").classList.remove("show"); });
+  $("careTypeGroup").addEventListener("click", function(ev){
+    var b = ev.target.closest(".tone"); if(!b) return; pickInGroup(this, b);
+  });
+  $("careCourseGroup").addEventListener("click", function(ev){
+    var b = ev.target.closest(".tone"); if(!b) return; pickInGroup(this, b);
+  });
+
+  $("careSaveBtn").addEventListener("click", function(){
+    var title = $("careTitle").value.trim();
+    var content = $("careContent").value.trim();
+    $("careFormMsg").textContent = "";
+    if(!title && !content){ $("careFormMsg").textContent = "제목이나 내용을 입력하세요."; return; }
+    var typeBtn = $("careTypeGroup").querySelector('.tone[aria-pressed="true"]');
+    var courseBtn = $("careCourseGroup").querySelector('.tone[aria-pressed="true"]');
+    var id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    var post = {
+      ts: Date.now(),
+      type: typeBtn ? typeBtn.dataset.type : "share",
+      course: courseBtn ? courseBtn.dataset.course : "공통",
+      title: title,
+      content: content,
+      authorId: currentUser ? currentUser.uid : "",
+      authorName: currentUser ? currentUser.realName : "",
+      department: currentUser ? currentUser.department : "",
+      ackBy: [],
+      resolved: false
+    };
+    window.CareBoardDB.save(id, post).then(function(){
+      flash("등록됨 ✓");
+      $("careTitle").value = ""; $("careContent").value = "";
+      $("carePopupOverlay").classList.remove("show");
+    }).catch(function(){ $("careFormMsg").textContent = "등록 실패. 다시 시도하세요."; });
+  });
+
+  var CARE_SEEN_KEY = "careLastSeenTs";
+  function getCareLastSeen(){ return Number(localStorage.getItem(CARE_SEEN_KEY) || 0); }
+  function setCareLastSeen(ts){ localStorage.setItem(CARE_SEEN_KEY, String(ts)); }
+
+  function maybeShowCareAlert(){
+    if(!currentUser || careCache.length === 0) return;
+    var lastSeen = getCareLastSeen();
+    var latestTs = careCache[0].ts;
+    if(lastSeen === 0){ setCareLastSeen(latestTs); return; }
+    var newUrgent = careCache.filter(function(p){ return p.type === "urgent" && p.ts > lastSeen; });
+    if(newUrgent.length === 0) return;
+    $("careAlertBody").innerHTML = newUrgent.slice(0, 5).map(function(p){
+      return '<div class="popup-item"><div class="head"><strong>' + esc(p.title || "긴급 케어 요청") + '</strong><span class="when">' + fmtCareTime(p.ts) + '</span></div>'
+        + '<div>' + esc(p.content || "") + '</div></div>';
+    }).join("");
+    $("careAlertOverlay").classList.add("show");
+  }
+  function dismissCareAlert(){
+    $("careAlertOverlay").classList.remove("show");
+    if(careCache.length) setCareLastSeen(careCache[0].ts);
+  }
+  $("careAlertCloseBtn").addEventListener("click", dismissCareAlert);
+  $("careAlertViewBtn").addEventListener("click", function(){ dismissCareAlert(); showView("care"); });
+
+  $("scheduleDate").value = todayDateStr(1);
+  $("scheduleSaveBtn").addEventListener("click", function(){
+    var date = $("scheduleDate").value;
+    var raw = $("scheduleRaw").value;
+    $("scheduleMsg").textContent = "";
+    if(!date){ $("scheduleMsg").textContent = "날짜를 선택하세요."; return; }
+    var rows = parseScheduleRaw(raw);
+    if(rows.length === 0){ $("scheduleMsg").textContent = "입력된 팀이 없습니다."; return; }
+    window.ScheduleDB.save(date, rows, currentUser ? currentUser.uid : "").then(function(){
+      $("scheduleMsg").textContent = rows.length + "팀 업로드 완료 ✓";
+    }).catch(function(){ $("scheduleMsg").textContent = "업로드 실패"; });
+  });
+
+  function startCareBoard(){
+    if(careStarted) return;
+    careStarted = true;
+    fetchWeather();
+
+    function attachCare(){
+      window.CareBoardDB.subscribe(function(list){
+        careCache = list;
+        renderCareFeed();
+        maybeShowCareAlert();
+      });
+    }
+    if(window.CareBoardDB){ attachCare(); }
+    else { window.addEventListener("careboarddb-ready", attachCare, { once:true }); }
+
+    function attachSchedule(){
+      window.ScheduleDB.subscribeDate(todayDateStr(1), function(sched){
+        scheduleForTomorrow = sched;
+        renderCareSummary();
+      });
+    }
+    if(window.ScheduleDB){ attachSchedule(); }
+    else { window.addEventListener("scheduledb-ready", attachSchedule, { once:true }); }
+  }
 })();
 </script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, collection, doc, getDoc, setDoc, deleteDoc, onSnapshot, query, orderBy, limit, where
+    getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, limit, where, arrayUnion, arrayRemove
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut,
@@ -1676,13 +2131,18 @@ window.VocHelper = (function(){
   var anonPostsCol = collection(db, "anonPosts");
   var sharedPostsCol = collection(db, "sharedPosts");
   var coursePostsCol = collection(db, "coursePosts");
+  var careBoardCol = collection(db, "careBoard");
+  var schedulesCol = collection(db, "schedules");
 
   function idToEmail(id){ return id.trim().toLowerCase() + "@vochelper.local"; }
 
   window.VocAuth = {
-    signUp: function(id, pw, department){
+    signUp: function(id, pw, department, realName, phoneLast4){
       return createUserWithEmailAndPassword(auth, idToEmail(id), pw).then(function(cred){
-        return setDoc(doc(usersCol, cred.user.uid), { id: id.trim(), department: department });
+        return setDoc(doc(usersCol, cred.user.uid), {
+          id: id.trim(), department: department,
+          realName: (realName || "").trim(), phoneLast4: (phoneLast4 || "").trim()
+        });
       });
     },
     signIn: function(id, pw){
@@ -1691,10 +2151,12 @@ window.VocHelper = (function(){
     signInWithGoogle: function(){
       return signInWithRedirect(auth, new GoogleAuthProvider());
     },
-    setDepartment: function(department){
+    setDepartment: function(department, realName, phoneLast4){
       return setDoc(doc(usersCol, auth.currentUser.uid), {
         id: auth.currentUser.email,
-        department: department
+        department: department,
+        realName: (realName || "").trim(),
+        phoneLast4: (phoneLast4 || "").trim()
       }, { merge: true });
     },
     signOut: function(){ return signOut(auth); },
@@ -1710,7 +2172,9 @@ window.VocHelper = (function(){
             id: profile.id || user.email,
             department: profile.department || "",
             role: profile.role || "",
-            vocAccess: profile.vocAccess || "none"
+            vocAccess: profile.vocAccess || "none",
+            realName: profile.realName || "",
+            phoneLast4: profile.phoneLast4 || ""
           });
         });
       });
@@ -1838,6 +2302,46 @@ window.VocHelper = (function(){
     }
   };
   window.dispatchEvent(new Event("coursedb-ready"));
+
+  window.CareBoardDB = {
+    subscribe: function(onChange){
+      var q = query(careBoardCol, orderBy("ts", "desc"), limit(300));
+      return onSnapshot(q, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          data.id = d.id;
+          list.push(data);
+        });
+        onChange(list);
+      }, function(err){ console.error("Firestore subscribe error", err); });
+    },
+    save: function(id, data){ return setDoc(doc(careBoardCol, id), data); },
+    remove: function(id){ return deleteDoc(doc(careBoardCol, id)); },
+    toggleAck: function(id, uid, currentlyAcked){
+      return updateDoc(doc(careBoardCol, id), {
+        ackBy: currentlyAcked ? arrayRemove(uid) : arrayUnion(uid)
+      });
+    },
+    setResolved: function(id, resolved){
+      return setDoc(doc(careBoardCol, id), { resolved: resolved }, { merge: true });
+    }
+  };
+  window.dispatchEvent(new Event("careboarddb-ready"));
+
+  window.ScheduleDB = {
+    save: function(date, rows, uploadedBy){
+      return setDoc(doc(schedulesCol, date), {
+        date: date, rows: rows, updatedAt: Date.now(), updatedBy: uploadedBy || ""
+      });
+    },
+    subscribeDate: function(date, onChange){
+      return onSnapshot(doc(schedulesCol, date), function(snap){
+        onChange(snap.exists() ? snap.data() : { date: date, rows: [] });
+      }, function(err){ console.error("Firestore subscribe error", err); });
+    }
+  };
+  window.dispatchEvent(new Event("scheduledb-ready"));
 </script>
 <script>
   if("serviceWorker" in navigator){
