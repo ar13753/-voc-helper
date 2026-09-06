@@ -1,6 +1,6 @@
 {
-  "name": "VOC 도우미",
-  "short_name": "VOC도우미",
+  "name": "sol-mate",
+  "short_name": "sol-mate",
   "description": "고객의 소리(VOC)를 유형별로 분석하고 응대 초안을 자동으로 작성하는 도구",
   "start_url": "./index.html",
   "scope": "./",
