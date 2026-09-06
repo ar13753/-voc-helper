@@ -820,6 +820,7 @@ window.VocHelper = (function(){
       flash("관리자 승인 대기 중입니다");
       return;
     }
+    if(!confirm("VOC 도우미는 관리자 승인이 필요합니다. 승인요청 하시겠습니까?")) return;
     window.VocAuth.requestVocAccess().then(function(){
       currentUser.vocAccess = "pending";
       flash("승인 요청을 보냈습니다. 관리자 승인을 기다려주세요");
