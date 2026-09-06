@@ -555,6 +555,17 @@ window.VocHelper = (function(){
 
   function trim(s, n){ s = s.replace(/\s+/g," ").trim(); return s.length>n ? s.slice(0,n-1)+"…" : s; }
 
+  // 응대 초안 띄어쓰기 정리: 연속 공백/탭 축소, 문장부호 앞뒤 공백 정리, 줄 끝 공백 제거
+  function normalizeSpacing(text){
+    return String(text).split("\n").map(function(line){
+      return line
+        .replace(/[ \t]+/g, " ")
+        .replace(/\s+([.,!?])/g, "$1")
+        .replace(/([.,!?])(?=[가-힣])/g, "$1 ")
+        .replace(/^\s+|\s+$/g, "");
+    }).join("\n");
+  }
+
   // 받침 유무에 따라 "로"/"으로" 조사를 자동 선택 (받침 없음 또는 'ㄹ' 받침 -> 로)
   function josaRo(w){
     var last = (w||"").trim().slice(-1);
@@ -574,7 +585,7 @@ window.VocHelper = (function(){
       + "(고객님이 원하시는 내용) 레스토랑 이용 시 직원에게 편하게 말씀해 주시면 정성껏 준비해 드리겠습니다.\n\n"
       + "앞으로도 세심한 서비스로 보답하는 푸른솔 GC가 되겠습니다.\n\n"
       + "감사합니다.\n\n"
-      + "푸른솔 GC 서비스 컨시어지 드림";
+      + "푸른솔 GC 서비스 컨시어지 담당자 올림";
   }
 
   // 코스 기계/장비 소음 전용 사과 템플릿
@@ -585,7 +596,8 @@ window.VocHelper = (function(){
       + "또한 작업으로 인한 불가피한 상황에서도 고객님에 대한 배려가 부족했던 점 다시 한번 사과드리며,\n"
       + "추후 내장 시에는 더욱 쾌적하게 이용하실 수 있도록 최선을 다하겠습니다.\n\n"
       + "앞으로도 고객님의 작은 목소리 하나도 놓치지 않고 귀 기울이는 푸른솔 GC가 되겠습니다.\n\n"
-      + "감사합니다.";
+      + "감사합니다.\n\n"
+      + "서비스 컨시어지 담당자 올림";
   }
 
   // 코스(화이트티) 난이도 + 조식 양식메뉴 확대 요청 전용 안내 템플릿
@@ -596,7 +608,7 @@ window.VocHelper = (function(){
       + "아울러 조식 양식 메뉴 확대 요청 역시 식음 부서와 공유하여, 향후 메뉴 구성 시 고객님의 선호를 반영할 수 있도록 적극 검토하겠습니다.\n\n"
       + "늘 고객님의 의견을 바탕으로 한 단계 더 발전하는 푸른솔 GC가 되겠습니다. 다음 라운드에서도 더욱 편안하고 즐거운 시간 보내실 수 있도록 정성을 다해 모시겠습니다.\n\n"
       + "감사합니다.\n\n"
-      + "서비스 컨시어지팀 드림";
+      + "서비스 컨시어지팀 담당자 올림";
   }
 
   // 파우더룸 드라이기 고장 전용 처리약속 템플릿
@@ -606,7 +618,7 @@ window.VocHelper = (function(){
       + "말씀해 주신 파우더룸 드라이기는 즉시 점검 후 교체 조치를 완료하였습니다.\n\n"
       + "앞으로도 시설과 서비스를 세심히 살펴 늘 쾌적한 라운드를 전하겠습니다. \n"
       + "감사합니다.\n\n"
-      + "서비스 컨시어지 담당자 드림";
+      + "서비스 컨시어지 담당자 올림";
   }
 
   // 회신(💬) 공통 틀 + 유형별 4종 본문
@@ -634,6 +646,9 @@ window.VocHelper = (function(){
 
   // 응대 초안 (opt.style: "formal" 정중 | "casual" 친근)
   function draft(t, tone, opt){
+    return normalizeSpacing(draftRaw(t, tone, opt));
+  }
+  function draftRaw(t, tone, opt){
     opt = opt || {};
     var casual = opt.style === "casual";
     var e = extract(clean(t));
@@ -709,7 +724,7 @@ window.VocHelper = (function(){
 
     var close = casual
       ? "감사합니다!\n(담당자)"
-      : "감사합니다.\n서비스컨시어지 담당자드림";
+      : "감사합니다.\n서비스 컨시어지 담당자 올림";
     return hi + (org ? " " + org : "") + "\n\n" + body + "\n\n" + close;
   }
 
