@@ -277,6 +277,26 @@
     <p id="deptPickError" class="muted" style="color:var(--danger); min-height:1.2em"></p>
   </section>
 
+  <!-- 기존 가입자 프로필 보완 (이름/전화 뒷자리가 없는 경우 로그인 직후 표시) -->
+  <section id="profileView" class="card hidden-view">
+    <h2>이름을 알려주세요</h2>
+    <p class="muted" style="margin:0 0 6px">캐디 배정 스케줄을 정확히 안내해 드리려면 이름과 휴대폰 뒷자리가 필요해요. 한 번만 입력하면 됩니다.</p>
+    <label style="margin-top:6px">이름 (실명)</label>
+    <div class="row">
+      <input type="text" id="profileRealName" placeholder="이름 (실명)">
+    </div>
+    <div id="profilePhoneRow">
+      <label style="margin-top:6px">휴대폰 뒷자리 4자리 (동명이인 구분용)</label>
+      <div class="row">
+        <input type="text" id="profilePhone4" placeholder="휴대폰 뒷자리 4자리" maxlength="4" inputmode="numeric">
+      </div>
+    </div>
+    <div class="row">
+      <button class="action" id="profileSubmitBtn">확인</button>
+    </div>
+    <p id="profileError" class="muted" style="color:var(--danger); min-height:1.2em"></p>
+  </section>
+
   <!-- 실시간 케어 보드 (홈) -->
   <div id="careView" class="hidden-view">
     <div class="care-summary" id="careSummary"></div>
@@ -978,6 +998,7 @@ window.VocHelper = (function(){
   function showView(view){
     $("authView").classList.toggle("hidden-view", view !== "auth");
     $("deptPickView").classList.toggle("hidden-view", view !== "deptpick");
+    $("profileView").classList.toggle("hidden-view", view !== "profile");
     $("careView").classList.toggle("hidden-view", view !== "care");
     $("homeView").classList.toggle("hidden-view", view !== "home");
     $("vocView").classList.toggle("hidden-view", view !== "voc");
@@ -1106,10 +1127,7 @@ window.VocHelper = (function(){
       currentUser.department = deptPickSelected;
       currentUser.realName = realName;
       currentUser.phoneLast4 = phone4;
-      $("whoAmI").textContent = currentUser.id + "님 (" + currentUser.department + ")";
-      $("vocRequestsBtn").style.display = currentUser.role === "admin" ? "" : "none";
-      $("scheduleUploadBtn").style.display = currentUser.role === "admin" ? "" : "none";
-      showView("care");
+      enterCare(currentUser);
     }).catch(function(err){
       $("deptPickError").textContent = authErrorMessage(err);
     });
@@ -1167,6 +1185,35 @@ window.VocHelper = (function(){
     }
   });
 
+  function needsProfileInfo(user){
+    return !user.realName || (user.department === "캐디" && !user.phoneLast4);
+  }
+  function enterCare(user){
+    $("whoAmI").textContent = user.id + "님 (" + user.department + ")";
+    $("vocRequestsBtn").style.display = user.role === "admin" ? "" : "none";
+    $("scheduleUploadBtn").style.display = user.role === "admin" ? "" : "none";
+    showView("care");
+    startCareBoard();
+  }
+
+  $("profileSubmitBtn").addEventListener("click", function(){
+    var realName = $("profileRealName").value.trim();
+    var phone4 = $("profilePhone4").value.trim();
+    $("profileError").textContent = "";
+    if(!realName){ $("profileError").textContent = "이름을 입력하세요."; return; }
+    if(currentUser.department === "캐디" && !isValidPhone4(phone4)){
+      $("profileError").textContent = "휴대폰 뒷자리 4자리를 정확히 입력하세요.";
+      return;
+    }
+    window.VocAuth.updateProfile(realName, phone4).then(function(){
+      currentUser.realName = realName;
+      currentUser.phoneLast4 = phone4;
+      enterCare(currentUser);
+    }).catch(function(err){
+      $("profileError").textContent = authErrorMessage(err);
+    });
+  });
+
   function startAuth(){
     function attach(){
       window.VocAuth.onChange(function(user){
@@ -1175,12 +1222,13 @@ window.VocHelper = (function(){
           $("authId").value = ""; $("authPw").value = "";
           if(!user.department){
             showView("deptpick");
+          } else if(needsProfileInfo(user)){
+            $("profilePhoneRow").style.display = user.department === "캐디" ? "" : "none";
+            $("profileRealName").value = user.realName || "";
+            $("profilePhone4").value = user.phoneLast4 || "";
+            showView("profile");
           } else {
-            $("whoAmI").textContent = user.id + "님 (" + user.department + ")";
-            $("vocRequestsBtn").style.display = user.role === "admin" ? "" : "none";
-            $("scheduleUploadBtn").style.display = user.role === "admin" ? "" : "none";
-            showView("care");
-            startCareBoard();
+            enterCare(user);
           }
         } else {
           showView("auth");
@@ -2155,6 +2203,12 @@ window.VocHelper = (function(){
       return setDoc(doc(usersCol, auth.currentUser.uid), {
         id: auth.currentUser.email,
         department: department,
+        realName: (realName || "").trim(),
+        phoneLast4: (phoneLast4 || "").trim()
+      }, { merge: true });
+    },
+    updateProfile: function(realName, phoneLast4){
+      return setDoc(doc(usersCol, auth.currentUser.uid), {
         realName: (realName || "").trim(),
         phoneLast4: (phoneLast4 || "").trim()
       }, { merge: true });
