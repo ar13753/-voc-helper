@@ -199,6 +199,7 @@
     <p class="muted" id="whoAmI" style="margin:0 0 4px"></p>
     <button class="home-btn" data-view="notice"><span class="num">1</span> 📢 고객 공지</button>
     <button class="home-btn" id="vocMenuBtn" data-view="voc"><span class="num">2</span> 🗣️ VOC 도우미</button>
+    <button class="home-btn" data-view="pine"><span class="num">3</span> 🌲 소나무숲</button>
     <button class="home-btn" id="vocRequestsBtn" data-view="vocRequests" style="display:none">🔑 VOC 접근 요청 관리</button>
     <button class="ghost" id="logoutBtn" style="margin-top:6px">로그아웃</button>
   </section>
@@ -210,6 +211,45 @@
     <p class="muted" style="margin:0 0 6px">VOC 도우미 사용을 요청한 직원을 승인하거나 거절하세요.</p>
     <div id="vocReqList" class="saved-list" style="margin-top:12px">
       <p class="muted">대기 중인 요청이 없습니다.</p>
+    </div>
+  </section>
+  </div>
+
+  <!-- 소나무숲: 직원 커뮤니티 서브 메뉴 -->
+  <section id="pineView" class="card home-menu hidden-view">
+    <button class="ghost back-btn" data-back style="margin-bottom:10px">← 홈으로</button>
+    <button class="home-btn" data-view="pineAnon"><span class="num">1</span> 🕵️ 익명제보</button>
+    <button class="home-btn" data-view="pineShared"><span class="num">2</span> 📌 공유제보</button>
+  </section>
+
+  <!-- 소나무숲 1. 익명제보 -->
+  <div id="pineAnonView" class="hidden-view">
+  <button class="ghost back-btn" data-back="pine">← 소나무숲으로</button>
+  <section class="card">
+    <h2>🕵️ 익명제보 <span id="anonCount" class="tag">0건</span></h2>
+    <p class="muted" style="margin:0 0 6px">작성자가 표시되지 않는 익명 게시판입니다. 자유롭게 의견이나 제보를 남겨주세요.</p>
+    <textarea id="anonContent" style="min-height:70px" placeholder="자유롭게 작성해주세요 (작성자는 표시되지 않습니다)"></textarea>
+    <div class="row">
+      <button class="action" id="anonSaveBtn">🌲 익명으로 남기기</button>
+    </div>
+    <div id="anonList" class="saved-list" style="margin-top:12px">
+      <p class="muted">등록된 글이 없습니다.</p>
+    </div>
+  </section>
+  </div>
+
+  <!-- 소나무숲 2. 공유제보 -->
+  <div id="pineSharedView" class="hidden-view">
+  <button class="ghost back-btn" data-back="pine">← 소나무숲으로</button>
+  <section class="card">
+    <h2>📌 공유제보 <span id="sharedCount" class="tag">0건</span></h2>
+    <p class="muted" style="margin:0 0 6px">이름/부서가 함께 표시되는 공유 게시판입니다.</p>
+    <textarea id="sharedContent" style="min-height:70px" placeholder="자유롭게 작성해주세요"></textarea>
+    <div class="row">
+      <button class="action" id="sharedSaveBtn">📌 공유로 남기기</button>
+    </div>
+    <div id="sharedList" class="saved-list" style="margin-top:12px">
+      <p class="muted">등록된 글이 없습니다.</p>
     </div>
   </section>
   </div>
@@ -745,13 +785,16 @@ window.VocHelper = (function(){
     $("vocView").classList.toggle("hidden-view", view !== "voc");
     $("noticeView").classList.toggle("hidden-view", view !== "notice");
     $("vocRequestsView").classList.toggle("hidden-view", view !== "vocRequests");
+    $("pineView").classList.toggle("hidden-view", view !== "pine");
+    $("pineAnonView").classList.toggle("hidden-view", view !== "pineAnon");
+    $("pineSharedView").classList.toggle("hidden-view", view !== "pineShared");
   }
   Array.prototype.forEach.call(document.querySelectorAll(".home-btn"), function(b){
     if(b.id === "vocMenuBtn") return; // 별도 클릭 핸들러에서 승인 여부를 확인함
     b.addEventListener("click", function(){ showView(b.dataset.view); });
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-back]"), function(b){
-    b.addEventListener("click", function(){ showView("home"); });
+    b.addEventListener("click", function(){ showView(b.dataset.back || "home"); });
   });
 
   /* ---------- 로그인 / 회원가입 (Firebase Authentication) ---------- */
@@ -1360,6 +1403,96 @@ window.VocHelper = (function(){
 
   $("savedList").innerHTML = '<p class="muted">기록 불러오는 중…</p>';
   startVocDb();   // 시작 시 Firestore에서 저장 목록을 불러와 실시간으로 동기화
+
+  /* ---------- 소나무숲 (익명제보 / 공유제보) ---------- */
+  var anonCache = [];
+  var sharedCache = [];
+
+  function renderAnon(){
+    $("anonCount").textContent = anonCache.length + "건";
+    if(anonCache.length === 0){
+      $("anonList").innerHTML = '<p class="muted">등록된 글이 없습니다.</p>';
+      return;
+    }
+    var isAdmin = currentUser && currentUser.role === "admin";
+    $("anonList").innerHTML = anonCache.map(function(p){
+      return '<div class="saved-item" data-id="' + p.id + '">'
+        + '<div class="head"><strong>익명</strong><span class="when">' + esc(fmtWhen(p.ts)) + '</span></div>'
+        + '<div class="peek">' + esc(p.content || "") + '</div>'
+        + (isAdmin ? '<div class="acts"><button data-act="del" class="del">삭제</button></div>' : '')
+        + '</div>';
+    }).join("");
+  }
+
+  function renderShared(){
+    $("sharedCount").textContent = sharedCache.length + "건";
+    if(sharedCache.length === 0){
+      $("sharedList").innerHTML = '<p class="muted">등록된 글이 없습니다.</p>';
+      return;
+    }
+    $("sharedList").innerHTML = sharedCache.map(function(p){
+      var who = esc(p.authorId || "익명") + (p.department ? " · " + esc(p.department) : "");
+      return '<div class="saved-item" data-id="' + p.id + '">'
+        + '<div class="head"><strong>' + who + '</strong><span class="when">' + esc(fmtWhen(p.ts)) + '</span></div>'
+        + '<div class="peek">' + esc(p.content || "") + '</div>'
+        + '<div class="acts"><button data-act="del" class="del">삭제</button></div>'
+        + '</div>';
+    }).join("");
+  }
+
+  function startPineDb(){
+    function attach(){
+      window.PineDB.subscribeAnon(function(list){ anonCache = list; renderAnon(); });
+      window.PineDB.subscribeShared(function(list){ sharedCache = list; renderShared(); });
+    }
+    if(window.PineDB){ attach(); }
+    else { window.addEventListener("pinedb-ready", attach, { once:true }); }
+  }
+
+  $("anonSaveBtn").addEventListener("click", function(){
+    var content = $("anonContent").value.trim();
+    if(!content){ flash("내용을 입력하세요"); return; }
+    var id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    window.PineDB.saveAnon(id, { ts: Date.now(), content: content }).then(function(){
+      flash("익명으로 등록됨 ✓");
+      $("anonContent").value = "";
+    }).catch(function(){ flash("등록 실패"); });
+  });
+
+  $("anonList").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button[data-act='del']"); if(!btn) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    if(confirm("이 글을 삭제하시겠습니까?")){
+      window.PineDB.removeAnon(item.getAttribute("data-id")).catch(function(){ flash("삭제 실패"); });
+    }
+  });
+
+  $("sharedSaveBtn").addEventListener("click", function(){
+    var content = $("sharedContent").value.trim();
+    if(!content){ flash("내용을 입력하세요"); return; }
+    var id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    window.PineDB.saveShared(id, {
+      ts: Date.now(),
+      content: content,
+      authorId: currentUser ? currentUser.id : "",
+      department: currentUser ? currentUser.department : ""
+    }).then(function(){
+      flash("공유글 등록됨 ✓");
+      $("sharedContent").value = "";
+    }).catch(function(){ flash("등록 실패"); });
+  });
+
+  $("sharedList").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button[data-act='del']"); if(!btn) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    if(confirm("이 글을 삭제하시겠습니까?")){
+      window.PineDB.removeShared(item.getAttribute("data-id")).catch(function(){ flash("삭제 실패"); });
+    }
+  });
+
+  $("anonList").innerHTML = '<p class="muted">불러오는 중…</p>';
+  $("sharedList").innerHTML = '<p class="muted">불러오는 중…</p>';
+  startPineDb();
 })();
 </script>
 <script type="module">
@@ -1388,6 +1521,8 @@ window.VocHelper = (function(){
   var recordsCol = collection(db, "records");
   var noticesCol = collection(db, "notices");
   var usersCol = collection(db, "users");
+  var anonPostsCol = collection(db, "anonPosts");
+  var sharedPostsCol = collection(db, "sharedPosts");
 
   function idToEmail(id){ return id.trim().toLowerCase() + "@vochelper.local"; }
 
@@ -1491,6 +1626,38 @@ window.VocHelper = (function(){
     remove: function(id){ return deleteDoc(doc(noticesCol, id)); }
   };
   window.dispatchEvent(new Event("noticedb-ready"));
+
+  window.PineDB = {
+    subscribeAnon: function(onChange){
+      var q = query(anonPostsCol, orderBy("ts", "desc"), limit(200));
+      return onSnapshot(q, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          data.id = d.id;
+          list.push(data);
+        });
+        onChange(list);
+      }, function(err){ console.error("Firestore subscribe error", err); });
+    },
+    saveAnon: function(id, data){ return setDoc(doc(anonPostsCol, id), data); },
+    removeAnon: function(id){ return deleteDoc(doc(anonPostsCol, id)); },
+    subscribeShared: function(onChange){
+      var q = query(sharedPostsCol, orderBy("ts", "desc"), limit(200));
+      return onSnapshot(q, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          data.id = d.id;
+          list.push(data);
+        });
+        onChange(list);
+      }, function(err){ console.error("Firestore subscribe error", err); });
+    },
+    saveShared: function(id, data){ return setDoc(doc(sharedPostsCol, id), data); },
+    removeShared: function(id){ return deleteDoc(doc(sharedPostsCol, id)); }
+  };
+  window.dispatchEvent(new Event("pinedb-ready"));
 </script>
 <script>
   if("serviceWorker" in navigator){
