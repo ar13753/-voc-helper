@@ -321,9 +321,21 @@
   <div id="noticeView" class="hidden-view">
   <button class="ghost back-btn" data-back>← 홈으로</button>
   <!-- 고객 공지 공유 -->
-  <section class="card">
-    <h2>고객 공지 공유 <span id="noticeCount" class="tag">0건</span></h2>
+  <div class="tones" id="noticeTabs" role="group" aria-label="고객 공지 화면 전환">
+    <button class="tone" id="noticeTabList" aria-pressed="true">📋 공지 목록</button>
+    <button class="tone" id="noticeTabForm" aria-pressed="false">✏️ 새 공지 작성</button>
+  </div>
+
+  <section class="card" id="noticeListCard">
+    <h2>고객 공지 목록 <span id="noticeCount" class="tag">0건</span></h2>
     <p class="muted" style="margin:0 0 6px">프론트 · 예약 · 캐디 · 식음 부서가 실시간으로 함께 보는 고객 상황 공지판입니다.</p>
+    <div id="noticeList" class="saved-list" style="margin-top:12px">
+      <p class="muted">등록된 공지가 없습니다.</p>
+    </div>
+  </section>
+
+  <section class="card hidden-view" id="noticeFormCard">
+    <h2>새 공지 작성</h2>
     <div class="row">
       <input type="text" id="noticeTeeTime" placeholder="티오프 시간 (예: 08:00)">
       <input type="text" id="noticeCourse" placeholder="코스 (예: 동코스)">
@@ -342,9 +354,6 @@
     <div class="row">
       <button class="action" id="noticeSaveBtn">📢 공지 등록</button>
       <button class="ghost" id="noticeClearBtn">지우기</button>
-    </div>
-    <div id="noticeList" class="saved-list" style="margin-top:12px">
-      <p class="muted">등록된 공지가 없습니다.</p>
     </div>
   </section>
   </div>
@@ -1232,6 +1241,15 @@ window.VocHelper = (function(){
     else selectedDepts.push(dept);
   });
 
+  function showNoticeTab(tab){
+    $("noticeTabList").setAttribute("aria-pressed", tab === "list" ? "true" : "false");
+    $("noticeTabForm").setAttribute("aria-pressed", tab === "form" ? "true" : "false");
+    $("noticeListCard").classList.toggle("hidden-view", tab !== "list");
+    $("noticeFormCard").classList.toggle("hidden-view", tab !== "form");
+  }
+  $("noticeTabList").addEventListener("click", function(){ showNoticeTab("list"); });
+  $("noticeTabForm").addEventListener("click", function(){ showNoticeTab("form"); });
+
   function renderNotices(){
     $("noticeCount").textContent = noticesCache.length + "건";
     if(noticesCache.length === 0){
@@ -1279,6 +1297,7 @@ window.VocHelper = (function(){
     window.NoticeDB.save(id, notice).then(function(){
       flash("공지 등록됨 ✓");
       $("noticeClearBtn").click();
+      showNoticeTab("list");
     }).catch(function(){ flash("등록 실패"); });
   });
 
