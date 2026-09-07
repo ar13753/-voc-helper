@@ -33,14 +33,22 @@
     --bg:#F8F9FA; --card:#ffffff; --ink:#1E2022; --muted:#6C757D;
     --line:#E9ECEF; --brand:#184D37; --brand-ink:#ffffff;
     --chip:#EAF3EE; --ok:#236E4F; --soft:#F1F3F1;
-    --warn:#C89D5C; --danger:#D9383A;
+    --warn:#C89D5C; --danger:#D9383A; --info:#2B7FB0;
+    --badge-urgent-bg:#FBE7E7; --badge-urgent-ink:#B23A3C;
+    --badge-vip-bg:#F5ECDC; --badge-vip-ink:#8C6A2E;
+    --badge-course-bg:#E3F0E9; --badge-course-ink:#236E4F;
+    --badge-share-bg:#E5EEF7; --badge-share-ink:#2B5F8A;
   }
   @media (prefers-color-scheme: dark){
     :root{
       --bg:#0E1512; --card:#16241D; --ink:#EEF3F0; --muted:#9FB3A8;
       --line:#243830; --brand:#4C9873; --brand-ink:#0B1811;
       --chip:#1D2E25; --ok:#6FCB9B; --soft:#12201A;
-      --warn:#D9B57E; --danger:#E8696B;
+      --warn:#D9B57E; --danger:#E8696B; --info:#6FB3DE;
+      --badge-urgent-bg:#3A2020; --badge-urgent-ink:#F0A2A3;
+      --badge-vip-bg:#3A331F; --badge-vip-ink:#E8CE94;
+      --badge-course-bg:#1C3327; --badge-course-ink:#8FE0B8;
+      --badge-share-bg:#1E2C3A; --badge-share-ink:#9CC6EA;
     }
   }
   *{box-sizing:border-box}
@@ -71,6 +79,9 @@
     border-radius:9px; background:var(--soft); color:var(--ink); font:inherit;
   }
   .tones{display:flex; gap:8px; flex-wrap:wrap; margin:14px 0}
+  #courseFilter{ flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; -ms-overflow-style:none; scrollbar-width:none }
+  #courseFilter::-webkit-scrollbar{ display:none }
+  #courseFilter .tone{ flex:0 0 auto }
   .tone{
     flex:1 1 auto; padding:9px 12px; border:1px solid var(--line);
     border-radius:999px; background:var(--chip); color:var(--ink);
@@ -176,10 +187,11 @@
   .tab-btn .tab-icon{ font-size:18px; line-height:1 }
 
   .care-greeting{ font-size:1.25rem; font-weight:800; color:var(--ink); margin:4px 0 14px }
-  .care-summary{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px }
+  .care-summary{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px }
   .care-widget{
     background:var(--card); border:1px solid var(--line); border-radius:14px;
     padding:12px 14px; display:flex; align-items:center; gap:12px;
+    flex:1 1 150px;
   }
   .care-widget .cw-icon{ font-size:22px; flex-shrink:0 }
   .care-widget .cw-label{ font-size:11px; color:var(--muted); margin:0 0 2px; font-weight:600 }
@@ -189,15 +201,18 @@
   .care-widget.accident.zero .cw-main{ color:var(--ok) }
 
   .care-feed{ display:flex; flex-direction:column; gap:12px }
-  .care-card{ background:var(--card); border-radius:14px; padding:14px; }
-  .care-card.urgent{ border:2px solid var(--danger) }
-  .care-card.normal{ border:1px solid var(--line) }
+  .care-card{ background:var(--card); border:1px solid var(--line); border-left:4px solid var(--line); border-radius:14px; padding:14px; }
+  .care-card.urgent{ border-left-color:var(--danger) }
+  .care-card.vip{ border-left-color:var(--warn) }
+  .care-card.course{ border-left-color:var(--ok) }
+  .care-card.share{ border-left-color:var(--info) }
+  .care-card.completed{ opacity:.65 }
   .care-card-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px }
   .care-badge{ font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px; }
-  .care-badge-urgent{ background:var(--danger); color:#fff }
-  .care-badge-vip{ background:var(--warn); color:#fff }
-  .care-badge-course{ background:var(--ok); color:#fff }
-  .care-badge-share{ background:var(--chip); color:var(--muted) }
+  .care-badge-urgent{ background:var(--badge-urgent-bg); color:var(--badge-urgent-ink) }
+  .care-badge-vip{ background:var(--badge-vip-bg); color:var(--badge-vip-ink) }
+  .care-badge-course{ background:var(--badge-course-bg); color:var(--badge-course-ink) }
+  .care-badge-share{ background:var(--badge-share-bg); color:var(--badge-share-ink) }
   .care-time{ font-size:11px; color:var(--muted); font-weight:500 }
   .care-title{ font-size:15px; font-weight:800; color:var(--ink); margin:0 0 6px; line-height:1.4 }
   .care-body{ font-size:13px; line-height:1.6; margin:0 0 12px }
@@ -211,7 +226,7 @@
   .care-del{ background:none; border:0; color:var(--danger); font-size:11px; cursor:pointer; padding:0; font:inherit }
 
   .fab{
-    position:fixed; bottom:74px; right:16px; z-index:35;
+    position:fixed; bottom:74px; left:50%; transform:translateX(-50%); z-index:35;
     background:var(--brand); color:var(--brand-ink); border:0; font:inherit;
     font-weight:700; font-size:13px; padding:12px 16px; border-radius:999px;
     display:flex; align-items:center; gap:8px; box-shadow:0 10px 20px rgba(0,0,0,0.25); cursor:pointer;
@@ -1913,7 +1928,8 @@ window.VocHelper = (function(){
     }
     var who = esc((p.department || "") + (p.department && p.authorName ? " · " : "") + (p.authorName || ""));
     var canDelete = currentUser && (currentUser.role === "admin" || p.authorId === currentUser.uid);
-    return '<div class="care-card ' + (isUrgent ? "urgent" : "normal") + '">'
+    var cardTypeClass = isUrgent ? "urgent" : (p.type === "vip" ? "vip" : (p.type === "course" ? "course" : "share"));
+    return '<div class="care-card ' + cardTypeClass + (p.resolved ? " completed" : "") + '">'
       + '<div class="care-card-top">' + badge + '<span class="care-time">' + fmtCareTime(p.ts) + '</span></div>'
       + '<h3 class="care-title">' + esc(p.title || "") + (p.course && p.course !== "공통" ? ' <span class="tag">' + esc(p.course) + '</span>' : "") + '</h3>'
       + '<p class="care-body ' + (isUrgent ? "highlight" : "plain") + '">' + esc(p.content || "") + '</p>'
