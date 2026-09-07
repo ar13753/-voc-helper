@@ -192,6 +192,7 @@
   .care-badge{ font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px; }
   .care-badge-urgent{ background:var(--danger); color:#fff }
   .care-badge-vip{ background:var(--warn); color:#fff }
+  .care-badge-course{ background:var(--ok); color:#fff }
   .care-badge-share{ background:var(--chip); color:var(--muted) }
   .care-time{ font-size:11px; color:var(--muted); font-weight:500 }
   .care-title{ font-size:15px; font-weight:800; color:var(--ink); margin:0 0 6px; line-height:1.4 }
@@ -319,6 +320,7 @@
       <div class="tones" id="careTypeGroup" role="group" aria-label="공지 유형">
         <button class="tone" data-type="urgent" aria-pressed="true">🚨 긴급 케어 요청</button>
         <button class="tone" data-type="vip" aria-pressed="false">⭐ VIP 케어 공유</button>
+        <button class="tone" data-type="course" aria-pressed="false">🏌️ 코스 제보</button>
         <button class="tone" data-type="share" aria-pressed="false">💬 일반 공유</button>
       </div>
       <label style="margin-top:10px">코스</label>
@@ -337,6 +339,10 @@
         <input type="text" id="careCustomerName" placeholder="예: 홍길동">
         <label style="margin-top:10px">티오프 시간</label>
         <input type="text" id="careTeeTime" placeholder="예: 08:00">
+      </div>
+      <div id="careCourseRow" style="display:none">
+        <label style="margin-top:10px">사진 첨부</label>
+        <input type="file" id="carePhotoInput" accept="image/*">
       </div>
       <label style="margin-top:10px">내용</label>
       <textarea id="careContent" style="min-height:90px" placeholder="상황과 조치 내용을 적어주세요"></textarea>
@@ -373,7 +379,6 @@
     <h2 style="margin:0 0 4px">마이페이지</h2>
     <p class="muted" id="whoAmI" style="margin:0 0 12px"></p>
     <button class="home-btn" data-view="notice"><span class="num">1</span> 📢 고객 공지</button>
-    <button class="home-btn" data-view="course"><span class="num">2</span> 🏌️ 코스 제보</button>
     <button class="home-btn" id="vocRequestsBtn" data-view="vocRequests" style="display:none">🔑 VOC 접근 요청 관리</button>
     <button class="home-btn" id="scheduleUploadBtn" data-view="schedule" style="display:none">📅 캐디 배정 스케줄 업로드</button>
     <button class="ghost" id="logoutBtn" style="margin-top:6px">로그아웃</button>
@@ -446,37 +451,6 @@
       <p class="muted">등록된 글이 없습니다.</p>
     </div>
   </section>
-  </div>
-
-  <!-- 4. 코스 제보 -->
-  <div id="courseView" class="hidden-view">
-  <button class="ghost back-btn" data-back>← 홈으로</button>
-  <section class="card">
-    <h2>🏌️ 코스 제보 <span id="courseCount" class="tag">0건</span></h2>
-    <p class="muted" style="margin:0 0 6px">코스에 대한 조치 요청이나 공유할 내용을 사진과 함께 남겨주세요. 새 글은 전 직원에게 팝업으로 안내됩니다.</p>
-    <textarea id="courseContent" style="min-height:70px" placeholder="예) 9번홀 그린 옆 스프링클러 파손, 즉시 조치 필요"></textarea>
-    <div class="row">
-      <input type="file" id="coursePhotoInput" accept="image/*">
-    </div>
-    <div class="row">
-      <button class="action" id="courseSaveBtn">🏌️ 등록</button>
-    </div>
-    <div id="courseList" class="saved-list" style="margin-top:12px">
-      <p class="muted">등록된 글이 없습니다.</p>
-    </div>
-  </section>
-  </div>
-
-  <!-- 코스 제보 신규 알림 팝업 -->
-  <div id="coursePopupOverlay" class="popup-overlay">
-    <div class="popup-card">
-      <h2>🏌️ 새로운 코스 제보</h2>
-      <div id="coursePopupBody"></div>
-      <div class="row">
-        <button class="ghost" id="coursePopupCloseBtn">닫기</button>
-        <button class="action" id="coursePopupViewBtn">코스 제보 보기</button>
-      </div>
-    </div>
   </div>
 
   <div id="vocView" class="hidden-view">
@@ -1017,7 +991,6 @@ window.VocHelper = (function(){
     $("pineView").classList.toggle("hidden-view", view !== "pine");
     $("pineAnonView").classList.toggle("hidden-view", view !== "pineAnon");
     $("pineSharedView").classList.toggle("hidden-view", view !== "pineShared");
-    $("courseView").classList.toggle("hidden-view", view !== "course");
 
     var showTabbar = !!TAB_VIEWS[view];
     $("mainTabbar").classList.toggle("hidden-view", !showTabbar);
@@ -1785,107 +1758,6 @@ window.VocHelper = (function(){
   $("sharedList").innerHTML = '<p class="muted">불러오는 중…</p>';
   startPineDb();
 
-  /* ---------- 4. 코스 제보 (사진 첨부 + 전 직원 팝업 알림) ---------- */
-  var COURSE_SEEN_KEY = "courseLastSeenTs";
-  function getCourseLastSeen(){ return Number(localStorage.getItem(COURSE_SEEN_KEY) || 0); }
-  function setCourseLastSeen(ts){ localStorage.setItem(COURSE_SEEN_KEY, String(ts)); }
-
-  var courseCache = [];
-
-  function renderCourse(){
-    $("courseCount").textContent = courseCache.length + "건";
-    if(courseCache.length === 0){
-      $("courseList").innerHTML = '<p class="muted">등록된 글이 없습니다.</p>';
-      return;
-    }
-    $("courseList").innerHTML = courseCache.map(function(p){
-      var who = esc(p.authorId || "") + (p.department ? " · " + esc(p.department) : "");
-      return '<div class="saved-item" data-id="' + p.id + '">'
-        + '<div class="head"><strong>' + who + '</strong><span class="when">' + esc(fmtWhen(p.ts)) + '</span></div>'
-        + (p.content ? '<div class="peek" style="-webkit-line-clamp:6">' + esc(p.content) + '</div>' : '')
-        + (p.photoUrl ? '<a href="' + p.photoUrl + '" target="_blank" rel="noopener"><img class="post-photo" src="' + p.photoUrl + '"></a>' : '')
-        + '<div class="acts"><button data-act="del" class="del">삭제</button></div>'
-        + '</div>';
-    }).join("");
-  }
-
-  function maybeShowCoursePopup(){
-    if(!currentUser || courseCache.length === 0) return;
-    var lastSeen = getCourseLastSeen();
-    if(lastSeen === 0){
-      setCourseLastSeen(courseCache[0].ts);   // 최초 실행: 기존 글은 팝업 없이 이미 본 것으로 처리
-      return;
-    }
-    var newOnes = courseCache.filter(function(p){ return p.ts > lastSeen; });
-    if(newOnes.length === 0) return;
-    $("coursePopupBody").innerHTML = newOnes.slice(0, 5).map(function(p){
-      var who = esc(p.authorId || "") + (p.department ? " · " + esc(p.department) : "");
-      return '<div class="popup-item"><div class="head"><strong>' + who + '</strong><span class="when">' + esc(fmtWhen(p.ts)) + '</span></div>'
-        + (p.content ? '<div>' + esc(p.content) + '</div>' : '')
-        + (p.photoUrl ? '<img src="' + p.photoUrl + '">' : '')
-        + '</div>';
-    }).join("");
-    $("coursePopupOverlay").classList.add("show");
-  }
-
-  function dismissCoursePopup(){
-    $("coursePopupOverlay").classList.remove("show");
-    if(courseCache.length) setCourseLastSeen(courseCache[0].ts);
-  }
-  $("coursePopupCloseBtn").addEventListener("click", dismissCoursePopup);
-  $("coursePopupViewBtn").addEventListener("click", function(){
-    dismissCoursePopup();
-    showView("course");
-  });
-
-  function startCourseDb(){
-    function attach(){
-      window.CourseDB.subscribe(function(list){
-        courseCache = list;
-        renderCourse();
-        maybeShowCoursePopup();
-      });
-    }
-    if(window.CourseDB){ attach(); }
-    else { window.addEventListener("coursedb-ready", attach, { once:true }); }
-  }
-
-  $("courseSaveBtn").addEventListener("click", function(){
-    var content = $("courseContent").value.trim();
-    var file = $("coursePhotoInput").files[0];
-    if(!content && !file){ flash("내용이나 사진을 첨부하세요"); return; }
-    var id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-    var post = {
-      ts: Date.now(),
-      content: content,
-      authorId: currentUser ? currentUser.id : "",
-      department: currentUser ? currentUser.department : ""
-    };
-    $("courseSaveBtn").disabled = true;
-    var uploadPromise = file ? window.CourseDB.uploadPhoto(id, file) : Promise.resolve(null);
-    uploadPromise.then(function(photo){
-      if(photo){ post.photoUrl = photo.url; post.photoPath = photo.path; }
-      return window.CourseDB.save(id, post);
-    }).then(function(){
-      flash("등록됨 ✓");
-      $("courseContent").value = "";
-      $("coursePhotoInput").value = "";
-    }).catch(function(){ flash("등록 실패"); }).finally(function(){
-      $("courseSaveBtn").disabled = false;
-    });
-  });
-
-  $("courseList").addEventListener("click", function(ev){
-    var btn = ev.target.closest("button[data-act='del']"); if(!btn) return;
-    var item = ev.target.closest(".saved-item"); if(!item) return;
-    if(confirm("이 글을 삭제하시겠습니까?")){
-      window.CourseDB.remove(item.getAttribute("data-id")).catch(function(){ flash("삭제 실패"); });
-    }
-  });
-
-  $("courseList").innerHTML = '<p class="muted">불러오는 중…</p>';
-  startCourseDb();
-
   /* ---------- 실시간 케어보드 ---------- */
   var careCache = [];
   var careFilter = "ALL";
@@ -1997,7 +1869,9 @@ window.VocHelper = (function(){
       ? '<span class="care-badge care-badge-urgent">🚨 긴급 케어 요청</span>'
       : p.type === "vip"
         ? '<span class="care-badge care-badge-vip">⭐ VIP 케어 공유</span>'
-        : '<span class="care-badge care-badge-share">💬 일반 공유</span>';
+        : p.type === "course"
+          ? '<span class="care-badge care-badge-course">🏌️ 코스 제보</span>'
+          : '<span class="care-badge care-badge-share">💬 일반 공유</span>';
     var ackBy = p.ackBy || [];
     var iAcked = !!(currentUser && ackBy.indexOf(currentUser.uid) > -1);
     var actionHtml;
@@ -2015,6 +1889,7 @@ window.VocHelper = (function(){
       + '<div class="care-card-top">' + badge + '<span class="care-time">' + fmtCareTime(p.ts) + '</span></div>'
       + '<h3 class="care-title">' + esc(p.title || "") + (p.course && p.course !== "공통" ? ' <span class="tag">' + esc(p.course) + '</span>' : "") + '</h3>'
       + '<p class="care-body ' + (isUrgent ? "highlight" : "plain") + '">' + esc(p.content || "") + '</p>'
+      + (p.photoUrl ? '<a href="' + p.photoUrl + '" target="_blank" rel="noopener"><img class="post-photo" src="' + p.photoUrl + '"></a>' : '')
       + '<div class="care-footer"><span>등록: ' + (who || "-") + '</span>' + actionHtml + '</div>'
       + (canDelete ? '<div style="text-align:right; margin-top:6px"><button class="care-del" data-act="del" data-id="' + p.id + '">삭제</button></div>' : "")
       + '</div>';
@@ -2059,8 +1934,10 @@ window.VocHelper = (function(){
 
   function updateCareFormFields(type){
     var useNameTime = type === "vip" || type === "urgent";
-    $("careTitleRow").style.display = useNameTime ? "none" : "";
+    var isCourseReport = type === "course";
+    $("careTitleRow").style.display = (useNameTime || isCourseReport) ? "none" : "";
     $("careVipRow").style.display = useNameTime ? "" : "none";
+    $("careCourseRow").style.display = isCourseReport ? "" : "none";
   }
 
   $("careFabBtn").addEventListener("click", function(){
@@ -2081,13 +1958,17 @@ window.VocHelper = (function(){
     var typeBtn = $("careTypeGroup").querySelector('.tone[aria-pressed="true"]');
     var type = typeBtn ? typeBtn.dataset.type : "share";
     var useNameTime = type === "vip" || type === "urgent";
+    var isCourseReport = type === "course";
     var content = $("careContent").value.trim();
     var customerName = useNameTime ? $("careCustomerName").value.trim() : "";
     var teeTime = useNameTime ? $("careTeeTime").value.trim() : "";
+    var photoFile = isCourseReport ? $("carePhotoInput").files[0] : null;
     var title = useNameTime ? [customerName, teeTime].filter(Boolean).join(" · ") : $("careTitle").value.trim();
     $("careFormMsg").textContent = "";
     if(useNameTime){
       if(!customerName && !content){ $("careFormMsg").textContent = "고객 성함이나 내용을 입력하세요."; return; }
+    } else if(isCourseReport){
+      if(!content && !photoFile){ $("careFormMsg").textContent = "내용이나 사진을 첨부하세요."; return; }
     } else if(!title && !content){
       $("careFormMsg").textContent = "제목이나 내용을 입력하세요."; return;
     }
@@ -2107,12 +1988,20 @@ window.VocHelper = (function(){
       ackBy: [],
       resolved: false
     };
-    window.CareBoardDB.save(id, post).then(function(){
+    $("careSaveBtn").disabled = true;
+    var uploadPromise = photoFile ? window.CareBoardDB.uploadPhoto(id, photoFile) : Promise.resolve(null);
+    uploadPromise.then(function(photo){
+      if(photo){ post.photoUrl = photo.url; post.photoPath = photo.path; }
+      return window.CareBoardDB.save(id, post);
+    }).then(function(){
       flash("등록됨 ✓");
       $("careTitle").value = ""; $("careContent").value = "";
       $("careCustomerName").value = ""; $("careTeeTime").value = "";
+      $("carePhotoInput").value = "";
       $("carePopupOverlay").classList.remove("show");
-    }).catch(function(){ $("careFormMsg").textContent = "등록 실패. 다시 시도하세요."; });
+    }).catch(function(){ $("careFormMsg").textContent = "등록 실패. 다시 시도하세요."; }).finally(function(){
+      $("careSaveBtn").disabled = false;
+    });
   });
 
   var CARE_SEEN_KEY = "careLastSeenTs";
@@ -2217,7 +2106,6 @@ window.VocHelper = (function(){
   var usersCol = collection(db, "users");
   var anonPostsCol = collection(db, "anonPosts");
   var sharedPostsCol = collection(db, "sharedPosts");
-  var coursePostsCol = collection(db, "coursePosts");
   var careBoardCol = collection(db, "careBoard");
   var schedulesCol = collection(db, "schedules");
 
@@ -2377,33 +2265,6 @@ window.VocHelper = (function(){
   };
   window.dispatchEvent(new Event("pinedb-ready"));
 
-  window.CourseDB = {
-    subscribe: function(onChange){
-      var q = query(coursePostsCol, orderBy("ts", "desc"), limit(200));
-      return onSnapshot(q, function(snap){
-        var list = [];
-        snap.forEach(function(d){
-          var data = d.data();
-          data.id = d.id;
-          list.push(data);
-        });
-        onChange(list);
-      }, function(err){ console.error("Firestore subscribe error", err); });
-    },
-    save: function(id, data){ return setDoc(doc(coursePostsCol, id), data); },
-    remove: function(id){ return deleteDoc(doc(coursePostsCol, id)); },
-    uploadPhoto: function(id, file){
-      var path = "coursePhotos/" + id + "-" + file.name;
-      var fileRef = storageRef(storage, path);
-      return uploadBytes(fileRef, file).then(function(){
-        return getDownloadURL(fileRef);
-      }).then(function(url){
-        return { url: url, path: path };
-      });
-    }
-  };
-  window.dispatchEvent(new Event("coursedb-ready"));
-
   window.CareBoardDB = {
     subscribe: function(onChange){
       var q = query(careBoardCol, orderBy("ts", "desc"), limit(300));
@@ -2426,6 +2287,15 @@ window.VocHelper = (function(){
     },
     setResolved: function(id, resolved){
       return setDoc(doc(careBoardCol, id), { resolved: resolved }, { merge: true });
+    },
+    uploadPhoto: function(id, file){
+      var path = "carePhotos/" + id + "-" + file.name;
+      var fileRef = storageRef(storage, path);
+      return uploadBytes(fileRef, file).then(function(){
+        return getDownloadURL(fileRef);
+      }).then(function(url){
+        return { url: url, path: path };
+      });
     }
   };
   window.dispatchEvent(new Event("careboarddb-ready"));
