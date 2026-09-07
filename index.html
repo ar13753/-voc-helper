@@ -976,6 +976,30 @@ window.VocHelper = (function(){
 (function(){
   var $ = function(id){ return document.getElementById(id); };
 
+  /* ---------- 팝업: 뒤로가기(기기 back) 시 앱 종료 대신 팝업만 닫히도록 처리 ---------- */
+  var openPopupCount = 0;
+  function openPopup(el){
+    el.classList.add("show");
+    openPopupCount++;
+    history.pushState({ vocHelperPopup: true }, "");
+  }
+  function closePopup(el){
+    if(!el.classList.contains("show")) return;
+    el.classList.remove("show");
+    if(openPopupCount > 0){
+      openPopupCount--;
+      history.back();
+    }
+  }
+  window.addEventListener("popstate", function(){
+    var anyClosed = false;
+    Array.prototype.forEach.call(document.querySelectorAll(".popup-overlay.show"), function(el){
+      el.classList.remove("show");
+      anyClosed = true;
+    });
+    if(anyClosed) openPopupCount = Math.max(0, openPopupCount - 1);
+  });
+
   /* ---------- 홈 메뉴 / 화면 전환 ---------- */
   var TAB_VIEWS = { care:"care", voc:"voc", pine:"pine", home:"home" };
   function showView(view){
@@ -1943,9 +1967,9 @@ window.VocHelper = (function(){
   $("careFabBtn").addEventListener("click", function(){
     var typeBtn = $("careTypeGroup").querySelector('.tone[aria-pressed="true"]');
     updateCareFormFields(typeBtn ? typeBtn.dataset.type : "urgent");
-    $("carePopupOverlay").classList.add("show");
+    openPopup($("carePopupOverlay"));
   });
-  $("carePopupCloseBtn").addEventListener("click", function(){ $("carePopupOverlay").classList.remove("show"); });
+  $("carePopupCloseBtn").addEventListener("click", function(){ closePopup($("carePopupOverlay")); });
   $("careTypeGroup").addEventListener("click", function(ev){
     var b = ev.target.closest(".tone"); if(!b) return; pickInGroup(this, b);
     updateCareFormFields(b.dataset.type);
@@ -1998,7 +2022,7 @@ window.VocHelper = (function(){
       $("careTitle").value = ""; $("careContent").value = "";
       $("careCustomerName").value = ""; $("careTeeTime").value = "";
       $("carePhotoInput").value = "";
-      $("carePopupOverlay").classList.remove("show");
+      closePopup($("carePopupOverlay"));
     }).catch(function(){ $("careFormMsg").textContent = "등록 실패. 다시 시도하세요."; }).finally(function(){
       $("careSaveBtn").disabled = false;
     });
@@ -2019,10 +2043,10 @@ window.VocHelper = (function(){
       return '<div class="popup-item"><div class="head"><strong>' + esc(p.title || "긴급 케어 요청") + '</strong><span class="when">' + fmtCareTime(p.ts) + '</span></div>'
         + '<div>' + esc(p.content || "") + '</div></div>';
     }).join("");
-    $("careAlertOverlay").classList.add("show");
+    openPopup($("careAlertOverlay"));
   }
   function dismissCareAlert(){
-    $("careAlertOverlay").classList.remove("show");
+    closePopup($("careAlertOverlay"));
     if(careCache.length) setCareLastSeen(careCache[0].ts);
   }
   $("careAlertCloseBtn").addEventListener("click", dismissCareAlert);
