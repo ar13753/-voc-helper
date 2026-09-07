@@ -2058,9 +2058,9 @@ window.VocHelper = (function(){
   });
 
   function updateCareFormFields(type){
-    var isVip = type === "vip";
-    $("careTitleRow").style.display = isVip ? "none" : "";
-    $("careVipRow").style.display = isVip ? "" : "none";
+    var useNameTime = type === "vip" || type === "urgent";
+    $("careTitleRow").style.display = useNameTime ? "none" : "";
+    $("careVipRow").style.display = useNameTime ? "" : "none";
   }
 
   $("careFabBtn").addEventListener("click", function(){
@@ -2080,13 +2080,13 @@ window.VocHelper = (function(){
   $("careSaveBtn").addEventListener("click", function(){
     var typeBtn = $("careTypeGroup").querySelector('.tone[aria-pressed="true"]');
     var type = typeBtn ? typeBtn.dataset.type : "share";
-    var isVip = type === "vip";
+    var useNameTime = type === "vip" || type === "urgent";
     var content = $("careContent").value.trim();
-    var customerName = isVip ? $("careCustomerName").value.trim() : "";
-    var teeTime = isVip ? $("careTeeTime").value.trim() : "";
-    var title = isVip ? [customerName, teeTime].filter(Boolean).join(" · ") : $("careTitle").value.trim();
+    var customerName = useNameTime ? $("careCustomerName").value.trim() : "";
+    var teeTime = useNameTime ? $("careTeeTime").value.trim() : "";
+    var title = useNameTime ? [customerName, teeTime].filter(Boolean).join(" · ") : $("careTitle").value.trim();
     $("careFormMsg").textContent = "";
-    if(isVip){
+    if(useNameTime){
       if(!customerName && !content){ $("careFormMsg").textContent = "고객 성함이나 내용을 입력하세요."; return; }
     } else if(!title && !content){
       $("careFormMsg").textContent = "제목이나 내용을 입력하세요."; return;
