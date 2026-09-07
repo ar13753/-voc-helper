@@ -328,8 +328,16 @@
         <button class="tone" data-course="밸리" aria-pressed="false">밸리</button>
         <button class="tone" data-course="레이크" aria-pressed="false">레이크</button>
       </div>
-      <label style="margin-top:10px">제목</label>
-      <input type="text" id="careTitle" placeholder="예) Lake 4번 홀 티박스 - 고객 넘어짐">
+      <div id="careTitleRow">
+        <label style="margin-top:10px">제목</label>
+        <input type="text" id="careTitle" placeholder="예) Lake 4번 홀 티박스 - 고객 넘어짐">
+      </div>
+      <div id="careVipRow" style="display:none">
+        <label style="margin-top:10px">고객 성함</label>
+        <input type="text" id="careCustomerName" placeholder="예: 홍길동">
+        <label style="margin-top:10px">티오프 시간</label>
+        <input type="text" id="careTeeTime" placeholder="예: 08:00">
+      </div>
       <label style="margin-top:10px">내용</label>
       <textarea id="careContent" style="min-height:90px" placeholder="상황과 조치 내용을 적어주세요"></textarea>
       <div class="row">
@@ -2049,29 +2057,50 @@ window.VocHelper = (function(){
     }
   });
 
-  $("careFabBtn").addEventListener("click", function(){ $("carePopupOverlay").classList.add("show"); });
+  function updateCareFormFields(type){
+    var isVip = type === "vip";
+    $("careTitleRow").style.display = isVip ? "none" : "";
+    $("careVipRow").style.display = isVip ? "" : "none";
+  }
+
+  $("careFabBtn").addEventListener("click", function(){
+    var typeBtn = $("careTypeGroup").querySelector('.tone[aria-pressed="true"]');
+    updateCareFormFields(typeBtn ? typeBtn.dataset.type : "urgent");
+    $("carePopupOverlay").classList.add("show");
+  });
   $("carePopupCloseBtn").addEventListener("click", function(){ $("carePopupOverlay").classList.remove("show"); });
   $("careTypeGroup").addEventListener("click", function(ev){
     var b = ev.target.closest(".tone"); if(!b) return; pickInGroup(this, b);
+    updateCareFormFields(b.dataset.type);
   });
   $("careCourseGroup").addEventListener("click", function(ev){
     var b = ev.target.closest(".tone"); if(!b) return; pickInGroup(this, b);
   });
 
   $("careSaveBtn").addEventListener("click", function(){
-    var title = $("careTitle").value.trim();
-    var content = $("careContent").value.trim();
-    $("careFormMsg").textContent = "";
-    if(!title && !content){ $("careFormMsg").textContent = "제목이나 내용을 입력하세요."; return; }
     var typeBtn = $("careTypeGroup").querySelector('.tone[aria-pressed="true"]');
+    var type = typeBtn ? typeBtn.dataset.type : "share";
+    var isVip = type === "vip";
+    var content = $("careContent").value.trim();
+    var customerName = isVip ? $("careCustomerName").value.trim() : "";
+    var teeTime = isVip ? $("careTeeTime").value.trim() : "";
+    var title = isVip ? [customerName, teeTime].filter(Boolean).join(" · ") : $("careTitle").value.trim();
+    $("careFormMsg").textContent = "";
+    if(isVip){
+      if(!customerName && !content){ $("careFormMsg").textContent = "고객 성함이나 내용을 입력하세요."; return; }
+    } else if(!title && !content){
+      $("careFormMsg").textContent = "제목이나 내용을 입력하세요."; return;
+    }
     var courseBtn = $("careCourseGroup").querySelector('.tone[aria-pressed="true"]');
     var id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
     var post = {
       ts: Date.now(),
-      type: typeBtn ? typeBtn.dataset.type : "share",
+      type: type,
       course: courseBtn ? courseBtn.dataset.course : "공통",
       title: title,
       content: content,
+      customerName: customerName,
+      teeTime: teeTime,
       authorId: currentUser ? currentUser.uid : "",
       authorName: currentUser ? currentUser.realName : "",
       department: currentUser ? currentUser.department : "",
@@ -2081,6 +2110,7 @@ window.VocHelper = (function(){
     window.CareBoardDB.save(id, post).then(function(){
       flash("등록됨 ✓");
       $("careTitle").value = ""; $("careContent").value = "";
+      $("careCustomerName").value = ""; $("careTeeTime").value = "";
       $("carePopupOverlay").classList.remove("show");
     }).catch(function(){ $("careFormMsg").textContent = "등록 실패. 다시 시도하세요."; });
   });
