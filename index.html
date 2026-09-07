@@ -403,11 +403,33 @@
   <section id="homeView" class="card home-menu hidden-view">
     <h2 style="margin:0 0 4px">마이페이지</h2>
     <p class="muted" id="whoAmI" style="margin:0 0 12px"></p>
-    <button class="home-btn" data-view="notice"><span class="num">1</span> 📢 고객 공지</button>
+    <button class="home-btn" id="myInfoBtn" data-view="myInfo">✏️ 개인정보 수정</button>
     <button class="home-btn" id="vocRequestsBtn" data-view="vocRequests" style="display:none">🔑 VOC 접근 요청 관리</button>
     <button class="home-btn" id="scheduleUploadBtn" data-view="schedule" style="display:none">📅 캐디 배정 스케줄 업로드</button>
     <button class="ghost" id="logoutBtn" style="margin-top:6px">로그아웃</button>
   </section>
+
+  <!-- 마이페이지: 개인정보 수정 -->
+  <div id="myInfoView" class="hidden-view">
+  <button class="ghost back-btn" data-back>← 마이페이지로</button>
+  <section class="card">
+    <h2>개인정보 수정</h2>
+    <label style="margin-top:6px">이름 (실명)</label>
+    <div class="row">
+      <input type="text" id="myInfoRealName" placeholder="이름 (실명)">
+    </div>
+    <div id="myInfoPhoneRow">
+      <label style="margin-top:6px">휴대폰 뒷자리 4자리 (동명이인 구분용)</label>
+      <div class="row">
+        <input type="text" id="myInfoPhone4" placeholder="휴대폰 뒷자리 4자리" maxlength="4" inputmode="numeric">
+      </div>
+    </div>
+    <div class="row">
+      <button class="action" id="myInfoSaveBtn">저장</button>
+    </div>
+    <p id="myInfoError" class="muted" style="color:var(--danger); min-height:1.2em"></p>
+  </section>
+  </div>
 
   <!-- 관리자: 캐디 배정 스케줄 업로드 -->
   <div id="scheduleView" class="hidden-view">
@@ -1037,6 +1059,7 @@ window.VocHelper = (function(){
     $("noticeView").classList.toggle("hidden-view", view !== "notice");
     $("vocRequestsView").classList.toggle("hidden-view", view !== "vocRequests");
     $("scheduleView").classList.toggle("hidden-view", view !== "schedule");
+    $("myInfoView").classList.toggle("hidden-view", view !== "myInfo");
     $("pineView").classList.toggle("hidden-view", view !== "pine");
     $("pineAnonView").classList.toggle("hidden-view", view !== "pineAnon");
     $("pineSharedView").classList.toggle("hidden-view", view !== "pineShared");
@@ -1243,6 +1266,31 @@ window.VocHelper = (function(){
       enterCare(currentUser);
     }).catch(function(err){
       $("profileError").textContent = authErrorMessage(err);
+    });
+  });
+
+  $("myInfoBtn").addEventListener("click", function(){
+    $("myInfoError").textContent = "";
+    $("myInfoPhoneRow").style.display = currentUser.department === "캐디" ? "" : "none";
+    $("myInfoRealName").value = currentUser.realName || "";
+    $("myInfoPhone4").value = currentUser.phoneLast4 || "";
+  });
+  $("myInfoSaveBtn").addEventListener("click", function(){
+    var realName = $("myInfoRealName").value.trim();
+    var phone4 = $("myInfoPhone4").value.trim();
+    $("myInfoError").textContent = "";
+    if(!realName){ $("myInfoError").textContent = "이름을 입력하세요."; return; }
+    if(currentUser.department === "캐디" && !isValidPhone4(phone4)){
+      $("myInfoError").textContent = "휴대폰 뒷자리 4자리를 정확히 입력하세요.";
+      return;
+    }
+    window.VocAuth.updateProfile(realName, phone4).then(function(){
+      currentUser.realName = realName;
+      currentUser.phoneLast4 = phone4;
+      flash("저장되었습니다 ✓");
+      showView("home");
+    }).catch(function(err){
+      $("myInfoError").textContent = authErrorMessage(err);
     });
   });
 
