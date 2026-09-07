@@ -1,8 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#1E4D2B"/>
-  <path d="M170 336 L220 336 L178 404 Z" fill="#FFFFFF"/>
-  <rect x="86" y="126" width="340" height="210" rx="48" fill="#FFFFFF"/>
-  <circle cx="196" cy="231" r="20" fill="#1E4D2B"/>
-  <circle cx="256" cy="231" r="20" fill="#1E4D2B"/>
-  <circle cx="316" cy="231" r="20" fill="#1E4D2B"/>
+  <rect width="512" height="512" rx="100" fill="#FFFFFF"/>
+
+  <!-- fluffy rounded pine silhouette (single soft blob, cuter than sharp triangles) -->
+  <path d="M256 108
+           C300 108 322 150 316 182
+           C336 190 352 214 348 240
+           C372 252 388 280 382 310
+           C378 336 356 352 328 352
+           L184 352
+           C156 352 134 336 130 310
+           C124 280 140 252 164 240
+           C160 214 176 190 196 182
+           C190 150 212 108 256 108 Z" fill="#2F7A54"/>
+
+  <!-- lighter belly highlight for depth/cuteness -->
+  <path d="M256 150
+           C280 150 296 172 292 192
+           C304 198 312 214 308 230
+           C300 226 288 224 276 226
+           C280 210 272 194 256 190
+           C240 194 232 210 236 226
+           C224 224 212 226 204 230
+           C200 214 208 198 220 192
+           C216 172 232 150 256 150 Z" fill="#57A97D" opacity="0.55"/>
+
+  <!-- cute face -->
+  <circle cx="222" cy="270" r="10" fill="#1E2022"/>
+  <circle cx="290" cy="270" r="10" fill="#1E2022"/>
+  <ellipse cx="204" cy="292" rx="14" ry="9" fill="#F4A6A0" opacity="0.8"/>
+  <ellipse cx="308" cy="292" rx="14" ry="9" fill="#F4A6A0" opacity="0.8"/>
+  <path d="M238 296 Q256 310 274 296" stroke="#1E2022" stroke-width="6" stroke-linecap="round" fill="none"/>
+
+  <!-- trunk -->
+  <rect x="228" y="352" width="56" height="46" rx="18" fill="#8B5E3C"/>
 </svg>
