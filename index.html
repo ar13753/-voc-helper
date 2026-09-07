@@ -364,7 +364,7 @@
   <nav class="tabbar hidden-view" id="mainTabbar">
     <button class="tab-btn" data-tab="care"><span class="tab-icon">📢</span><span>케어보드</span></button>
     <button class="tab-btn" id="tabVocBtn"><span class="tab-icon">💬</span><span>VOC 도우미</span></button>
-    <button class="tab-btn" data-tab="pine"><span class="tab-icon">🎋</span><span>대나무숲</span></button>
+    <button class="tab-btn" data-tab="pine"><span class="tab-icon">🌲</span><span>소나무숲</span></button>
     <button class="tab-btn" data-tab="home"><span class="tab-icon">👤</span><span>마이페이지</span></button>
   </nav>
 
@@ -409,22 +409,22 @@
   </section>
   </div>
 
-  <!-- 대나무숲: 직원 커뮤니티 서브 메뉴 -->
+  <!-- 소나무숲: 직원 커뮤니티 서브 메뉴 -->
   <section id="pineView" class="card home-menu hidden-view">
-    <h2 style="margin:0 0 10px">🎋 대나무숲</h2>
+    <h2 style="margin:0 0 10px">🌲 소나무숲</h2>
     <button class="home-btn" data-view="pineAnon"><span class="num">1</span> 🕵️ 익명제보</button>
     <button class="home-btn" data-view="pineShared"><span class="num">2</span> 📌 공유제보</button>
   </section>
 
-  <!-- 대나무숲 1. 익명제보 -->
+  <!-- 소나무숲 1. 익명제보 -->
   <div id="pineAnonView" class="hidden-view">
-  <button class="ghost back-btn" data-back="pine">← 대나무숲으로</button>
+  <button class="ghost back-btn" data-back="pine">← 소나무숲으로</button>
   <section class="card">
     <h2>🕵️ 익명제보 <span id="anonCount" class="tag">0건</span></h2>
     <p class="muted" style="margin:0 0 6px">작성자가 표시되지 않는 익명 게시판입니다. 자유롭게 의견이나 제보를 남겨주세요.</p>
     <textarea id="anonContent" style="min-height:70px" placeholder="자유롭게 작성해주세요 (작성자는 표시되지 않습니다)"></textarea>
     <div class="row">
-      <button class="action" id="anonSaveBtn">🎋 익명으로 남기기</button>
+      <button class="action" id="anonSaveBtn">🌲 익명으로 남기기</button>
     </div>
     <div id="anonList" class="saved-list" style="margin-top:12px">
       <p class="muted">등록된 글이 없습니다.</p>
@@ -432,9 +432,9 @@
   </section>
   </div>
 
-  <!-- 대나무숲 2. 공유제보 -->
+  <!-- 소나무숲 2. 공유제보 -->
   <div id="pineSharedView" class="hidden-view">
-  <button class="ghost back-btn" data-back="pine">← 대나무숲으로</button>
+  <button class="ghost back-btn" data-back="pine">← 소나무숲으로</button>
   <section class="card">
     <h2>📌 공유제보 <span id="sharedCount" class="tag">0건</span></h2>
     <p class="muted" style="margin:0 0 6px">이름/부서가 함께 표시되는 공유 게시판입니다.</p>
@@ -1695,7 +1695,7 @@ window.VocHelper = (function(){
   $("savedList").innerHTML = '<p class="muted">기록 불러오는 중…</p>';
   startVocDb();   // 시작 시 Firestore에서 저장 목록을 불러와 실시간으로 동기화
 
-  /* ---------- 대나무숲 (익명제보 / 공유제보) ---------- */
+  /* ---------- 소나무숲 (익명제보 / 공유제보) ---------- */
   var anonCache = [];
   var sharedCache = [];
 
