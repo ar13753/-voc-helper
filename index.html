@@ -2193,8 +2193,8 @@ window.VocHelper = (function(){
   var storage = getStorage(app);
   setPersistence(auth, browserLocalPersistence);
 
-  // 로그인 유지 시간: 앱을 껐다 켜도 로그인은 유지되지만, 최초 로그인 후 10시간이 지나면 자동 로그아웃
-  var SESSION_MS = 10 * 60 * 60 * 1000;
+  // 로그인 유지 시간: 앱을 껐다 켜도 로그인은 계속 유지됨 (자동 로그아웃 없음, 수동 로그아웃 전까지 무제한)
+  var SESSION_MS = Infinity;
   var LOGIN_AT_KEY = "vocHelper.loginAt";
   function getLoginAt(){ return Number(localStorage.getItem(LOGIN_AT_KEY) || 0); }
   function markLoginNow(){ localStorage.setItem(LOGIN_AT_KEY, String(Date.now())); }
