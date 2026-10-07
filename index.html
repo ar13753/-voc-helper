@@ -213,6 +213,8 @@
   .care-card.course{ border-left-color:var(--ok) }
   .care-card.share{ border-left-color:var(--info) }
   .care-card.completed{ opacity:.65 }
+  .care-card.assigned-mine{ box-shadow:0 0 0 2px var(--warn) inset }
+  .care-badge-assignee{ background:var(--badge-vip-bg); color:var(--badge-vip-ink); font-weight:700 }
   .care-card-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px }
   .care-badge{ font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px; }
   .care-badge-urgent{ background:var(--badge-urgent-bg); color:var(--badge-urgent-ink) }
@@ -369,6 +371,8 @@
         <button class="tone" data-course="밸리" aria-pressed="false">밸리</button>
         <button class="tone" data-course="레이크" aria-pressed="false">레이크</button>
       </div>
+      <label style="margin-top:10px">담당자 지정 (선택)</label>
+      <input type="text" id="careAssignee" placeholder="예: 홍길동 (비워두면 전체 공개 공지)">
       <div id="careTitleRow">
         <label style="margin-top:10px">제목</label>
         <input type="text" id="careTitle" placeholder="예) Lake 4번 홀 티박스 - 고객 넘어짐">
@@ -2035,9 +2039,11 @@ window.VocHelper = (function(){
     var who = esc((p.department || "") + (p.department && p.authorName ? " · " : "") + (p.authorName || ""));
     var canDelete = currentUser && (currentUser.role === "admin" || p.authorId === currentUser.uid);
     var cardTypeClass = isUrgent ? "urgent" : (p.type === "vip" ? "vip" : (p.type === "course" ? "course" : "share"));
-    return '<div class="care-card ' + cardTypeClass + (p.resolved ? " completed" : "") + '">'
+    var isAssignedToMe = !!(p.assignee && currentUser && currentUser.realName && p.assignee.trim() === currentUser.realName.trim());
+    var assigneeBadge = p.assignee ? ' <span class="tag care-badge-assignee">👤 ' + esc(p.assignee) + '님 지정' + (isAssignedToMe ? " · 나" : "") + '</span>' : "";
+    return '<div class="care-card ' + cardTypeClass + (p.resolved ? " completed" : "") + (isAssignedToMe ? " assigned-mine" : "") + '">'
       + '<div class="care-card-top">' + badge + '<span class="care-time">' + fmtCareTime(p.ts) + '</span></div>'
-      + '<h3 class="care-title">' + esc(p.title || "") + (p.course && p.course !== "공통" ? ' <span class="tag">' + esc(p.course) + '</span>' : "") + '</h3>'
+      + '<h3 class="care-title">' + esc(p.title || "") + (p.course && p.course !== "공통" ? ' <span class="tag">' + esc(p.course) + '</span>' : "") + assigneeBadge + '</h3>'
       + '<p class="care-body ' + (isUrgent ? "highlight" : "plain") + '">' + esc(p.content || "") + '</p>'
       + (p.photoUrl ? '<a href="' + p.photoUrl + '" target="_blank" rel="noopener"><img class="post-photo" src="' + p.photoUrl + '"></a>' : '')
       + '<div class="care-footer"><span>등록: ' + (who || "-") + '</span>' + actionHtml + '</div>'
@@ -2123,6 +2129,7 @@ window.VocHelper = (function(){
       $("careFormMsg").textContent = "제목이나 내용을 입력하세요."; return;
     }
     var courseBtn = $("careCourseGroup").querySelector('.tone[aria-pressed="true"]');
+    var assignee = $("careAssignee").value.trim();
     var id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
     var post = {
       ts: Date.now(),
@@ -2132,6 +2139,7 @@ window.VocHelper = (function(){
       content: content,
       customerName: customerName,
       teeTime: teeTime,
+      assignee: assignee,
       authorId: currentUser ? currentUser.uid : "",
       authorName: currentUser ? currentUser.realName : "",
       department: currentUser ? currentUser.department : "",
@@ -2147,7 +2155,7 @@ window.VocHelper = (function(){
       flash("등록됨 ✓");
       $("careTitle").value = ""; $("careContent").value = "";
       $("careCustomerName").value = ""; $("careTeeTime").value = "";
-      $("carePhotoInput").value = "";
+      $("carePhotoInput").value = ""; $("careAssignee").value = "";
       closePopup($("carePopupOverlay"));
     }).catch(function(){ $("careFormMsg").textContent = "등록 실패. 다시 시도하세요."; }).finally(function(){
       $("careSaveBtn").disabled = false;
