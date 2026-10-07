@@ -254,10 +254,24 @@
     </div>
     <p class="muted" style="text-align:center; margin:14px 0">또는</p>
     <div class="row">
-      <input type="text" id="authId" placeholder="아이디" autocomplete="username">
+      <input type="text" id="authId" placeholder="아이디 또는 이메일" autocomplete="username">
     </div>
     <div class="row">
       <input type="password" id="authPw" placeholder="비밀번호" autocomplete="current-password">
+    </div>
+    <p class="muted" style="text-align:right; margin:4px 0" id="forgotPwLinkRow">
+      <a href="#" id="forgotPwLink" style="color:inherit; text-decoration:underline">비밀번호를 잊으셨나요?</a>
+    </p>
+    <div id="forgotPwRow" style="display:none">
+      <p class="muted" style="margin:0 0 6px">가입하신 이메일 주소를 입력하면 재설정 링크를 보내드려요. (아이디로 가입하신 경우 이메일이 등록되지 않아 사용할 수 없어요)</p>
+      <div class="row">
+        <input type="text" id="forgotPwEmail" placeholder="가입하신 이메일 주소" autocomplete="email">
+      </div>
+      <div class="row">
+        <button class="action" id="forgotPwSubmitBtn">재설정 메일 보내기</button>
+        <button class="ghost" id="forgotPwCancelBtn">취소</button>
+      </div>
+      <p id="forgotPwMsg" class="muted" style="min-height:1.2em"></p>
     </div>
     <div id="authNameRow" style="display:none">
       <label style="margin-top:6px">이름 / 휴대폰 뒷자리 (동명이인 구분용)</label>
@@ -1103,12 +1117,49 @@ window.VocHelper = (function(){
     $("authToggleBtn").textContent = authMode === "login" ? "계정이 없으신가요? 회원가입" : "이미 계정이 있으신가요? 로그인";
     $("authDeptRow").style.display = authMode === "signup" ? "" : "none";
     $("authNameRow").style.display = authMode === "signup" ? "" : "none";
+    $("authId").placeholder = authMode === "signup" ? "이메일 (비밀번호 찾기에 사용돼요)" : "아이디 또는 이메일";
+    $("forgotPwLinkRow").style.display = authMode === "signup" ? "none" : "";
+    $("forgotPwRow").style.display = "none";
     $("authError").textContent = "";
+  });
+
+  $("forgotPwLink").addEventListener("click", function(ev){
+    ev.preventDefault();
+    $("forgotPwRow").style.display = "";
+    $("forgotPwMsg").textContent = "";
+  });
+  $("forgotPwCancelBtn").addEventListener("click", function(){
+    $("forgotPwRow").style.display = "none";
+    $("forgotPwMsg").textContent = "";
+  });
+  $("forgotPwSubmitBtn").addEventListener("click", function(){
+    var email = $("forgotPwEmail").value.trim();
+    var msg = $("forgotPwMsg");
+    msg.style.color = "var(--danger)";
+    if(!email || email.indexOf("@") < 0 || email.indexOf(".") < 0){
+      msg.textContent = "가입하신 이메일 주소를 정확히 입력하세요.";
+      return;
+    }
+    msg.style.color = "";
+    msg.textContent = "보내는 중…";
+    window.VocAuth.resetPassword(email).then(function(){
+      msg.style.color = "var(--ok, #2a8f4d)";
+      msg.textContent = "재설정 메일을 보냈습니다. 받은편지함(스팸함 포함)을 확인하세요.";
+    }).catch(function(err){
+      msg.style.color = "var(--danger)";
+      if(err.code === "auth/user-not-found"){
+        msg.textContent = "해당 이메일로 가입된 계정이 없습니다. 아이디로 가입하신 경우 관리자에게 문의하세요.";
+      } else if(err.code === "auth/invalid-email"){
+        msg.textContent = "이메일 형식이 올바르지 않습니다.";
+      } else {
+        msg.textContent = "오류가 발생했습니다 (" + err.code + ")";
+      }
+    });
   });
 
   function authErrorMessage(err){
     var code = (err && err.code) || "";
-    if(code === "auth/email-already-in-use") return "이미 사용 중인 아이디입니다.";
+    if(code === "auth/email-already-in-use") return "이미 사용 중인 아이디(이메일)입니다.";
     if(code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") return "아이디 또는 비밀번호가 올바르지 않습니다.";
     if(code === "auth/weak-password") return "비밀번호는 6자 이상이어야 합니다.";
     if(code === "auth/invalid-email") return "아이디에 사용할 수 없는 문자가 있습니다.";
@@ -1127,6 +1178,7 @@ window.VocHelper = (function(){
     $("authError").textContent = "";
     if(!id || !pw){ $("authError").textContent = "아이디와 비밀번호를 입력하세요."; return; }
     if(authMode === "signup"){
+      if(id.indexOf("@") < 0 || id.indexOf(".") < 0){ $("authError").textContent = "올바른 이메일 주소를 입력하세요."; return; }
       if(!authSelectedDept){ $("authError").textContent = "소속 부서를 선택하세요."; return; }
       var realName = $("authRealName").value.trim();
       var phone4 = $("authPhone4").value.trim();
@@ -2172,7 +2224,8 @@ window.VocHelper = (function(){
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut,
-    GoogleAuthProvider, signInWithRedirect, getRedirectResult, setPersistence, browserLocalPersistence
+    GoogleAuthProvider, signInWithRedirect, getRedirectResult, setPersistence, browserLocalPersistence,
+    sendPasswordResetEmail
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
   import {
     getStorage, ref as storageRef, uploadBytes, getDownloadURL
@@ -2210,16 +2263,22 @@ window.VocHelper = (function(){
   function idToEmail(id){ return id.trim().toLowerCase() + "@vochelper.local"; }
 
   window.VocAuth = {
-    signUp: function(id, pw, department, realName, phoneLast4){
-      return createUserWithEmailAndPassword(auth, idToEmail(id), pw).then(function(cred){
+    signUp: function(email, pw, department, realName, phoneLast4){
+      var cleanEmail = email.trim().toLowerCase();
+      return createUserWithEmailAndPassword(auth, cleanEmail, pw).then(function(cred){
         return setDoc(doc(usersCol, cred.user.uid), {
-          id: id.trim(), department: department,
+          id: cleanEmail, email: cleanEmail, department: department,
           realName: (realName || "").trim(), phoneLast4: (phoneLast4 || "").trim()
         });
       });
     },
     signIn: function(id, pw){
-      return signInWithEmailAndPassword(auth, idToEmail(id), pw);
+      var raw = id.trim();
+      var email = raw.indexOf("@") >= 0 ? raw.toLowerCase() : idToEmail(raw);
+      return signInWithEmailAndPassword(auth, email, pw);
+    },
+    resetPassword: function(email){
+      return sendPasswordResetEmail(auth, email.trim().toLowerCase());
     },
     signInWithGoogle: function(){
       return signInWithRedirect(auth, new GoogleAuthProvider());
