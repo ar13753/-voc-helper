@@ -422,6 +422,7 @@
     <h2 style="margin:0 0 4px">마이페이지</h2>
     <p class="muted" id="whoAmI" style="margin:0 0 12px"></p>
     <button class="home-btn" id="myInfoBtn" data-view="myInfo">✏️ 개인정보 수정</button>
+    <button class="home-btn" id="vipBtn" data-view="vip">⭐ VIP 회원 조회</button>
     <button class="home-btn" id="vocRequestsBtn" data-view="vocRequests" style="display:none">🔑 VOC 접근 요청 관리</button>
     <button class="home-btn" id="scheduleUploadBtn" data-view="schedule" style="display:none">📅 캐디 배정 스케줄 업로드</button>
     <button class="ghost" id="logoutBtn" style="margin-top:6px">로그아웃</button>
@@ -447,6 +448,45 @@
     </div>
     <p id="myInfoError" class="muted" style="color:var(--danger); min-height:1.2em"></p>
   </section>
+  </div>
+
+  <!-- VIP 회원 조회 -->
+  <div id="vipView" class="hidden-view">
+  <button class="ghost back-btn" data-back>← 마이페이지로</button>
+  <section class="card">
+    <h2>⭐ VIP 회원 조회</h2>
+    <p class="muted" style="margin:0 0 6px">이름 또는 전화번호 뒤 4자리로 검색하세요.</p>
+    <input type="text" id="vipSearchInput" placeholder="예: 홍길동 또는 5945">
+    <p class="muted" id="vipHint" style="margin:6px 0"></p>
+    <div id="vipResultArea" class="saved-list"></div>
+    <div class="row">
+      <button class="action" id="vipAddBtn">⭐ VIP 추가</button>
+      <button class="ghost" id="vipDirToggle">전체 명단 보기 ▾</button>
+    </div>
+    <div id="vipDirectory" class="saved-list hidden-view" style="margin-top:10px"></div>
+  </section>
+  </div>
+
+  <div id="vipPopupOverlay" class="popup-overlay">
+    <div class="popup-card">
+      <h2 id="vipPopupTitle">VIP 회원 추가</h2>
+      <label>이름</label>
+      <input type="text" id="vipName" placeholder="예: 홍길동">
+      <label style="margin-top:10px">전화번호</label>
+      <input type="text" id="vipPhone" placeholder="예: 010-1234-5678">
+      <label style="margin-top:10px">성별</label>
+      <div class="tones" id="vipGenderGroup" role="group" aria-label="성별">
+        <button class="tone" data-gender="남자" aria-pressed="true">남자</button>
+        <button class="tone" data-gender="여자" aria-pressed="false">여자</button>
+      </div>
+      <label style="margin-top:10px">비고</label>
+      <input type="text" id="vipNote" placeholder="예: 26년 VIP">
+      <div class="row">
+        <button class="ghost" id="vipPopupCloseBtn">취소</button>
+        <button class="action" id="vipSaveBtn">저장</button>
+      </div>
+      <p id="vipFormMsg" class="muted" style="min-height:1.2em"></p>
+    </div>
   </div>
 
   <!-- 관리자: 캐디 배정 스케줄 업로드 -->
@@ -1078,6 +1118,7 @@ window.VocHelper = (function(){
     $("vocRequestsView").classList.toggle("hidden-view", view !== "vocRequests");
     $("scheduleView").classList.toggle("hidden-view", view !== "schedule");
     $("myInfoView").classList.toggle("hidden-view", view !== "myInfo");
+    $("vipView").classList.toggle("hidden-view", view !== "vip");
     $("pineView").classList.toggle("hidden-view", view !== "pine");
     $("pineAnonView").classList.toggle("hidden-view", view !== "pineAnon");
     $("pineSharedView").classList.toggle("hidden-view", view !== "pineShared");
@@ -2223,6 +2264,128 @@ window.VocHelper = (function(){
     if(window.ScheduleDB){ attachSchedule(); }
     else { window.addEventListener("scheduledb-ready", attachSchedule, { once:true }); }
   }
+
+  /* ---------- VIP 회원 조회 (Firestore, 전 직원 공유) ---------- */
+  var vipCache = [];
+  var vipEditId = null;
+
+  function normalizeVip(str){ return (str || "").replace(/[\s-]/g, ""); }
+
+  function vipRowHtml(m){
+    return '<div class="saved-item" data-id="' + m.id + '">'
+      + '<div class="head"><strong>' + esc(m.name || "") + '</strong>'
+      + '<span class="tag">' + esc(m.gender || "") + '</span>'
+      + '<span class="when">' + esc(m.phone || "번호 미등록") + '</span></div>'
+      + (m.note ? '<div class="peek">' + esc(m.note) + '</div>' : '')
+      + '<div class="acts"><button data-act="edit">수정</button><button data-act="del" class="del">삭제</button></div>'
+      + '</div>';
+  }
+
+  function renderVipSearch(){
+    var q = normalizeVip($("vipSearchInput").value);
+    if(!q){
+      $("vipResultArea").innerHTML = "";
+      $("vipHint").textContent = "전체 " + vipCache.length + "명 등록됨 · 이름 일부 또는 전화번호 일부로 찾을 수 있어요";
+      return;
+    }
+    var matches = vipCache.filter(function(m){
+      return normalizeVip(m.name).indexOf(q) > -1 || normalizeVip(m.phone).indexOf(q) > -1;
+    });
+    $("vipHint").textContent = "검색 결과 " + matches.length + "건";
+    $("vipResultArea").innerHTML = matches.length === 0
+      ? '<p class="muted">일치하는 회원이 없습니다.</p>'
+      : matches.map(vipRowHtml).join("");
+  }
+
+  function renderVipDirectory(){
+    if($("vipDirectory").classList.contains("hidden-view")) return;
+    var sorted = vipCache.slice().sort(function(a,b){ return (a.name||"").localeCompare(b.name||"", "ko"); });
+    $("vipDirectory").innerHTML = sorted.length === 0
+      ? '<p class="muted">등록된 VIP가 없습니다.</p>'
+      : sorted.map(vipRowHtml).join("");
+  }
+
+  $("vipSearchInput").addEventListener("input", renderVipSearch);
+
+  $("vipDirToggle").addEventListener("click", function(){
+    var nowHidden = $("vipDirectory").classList.toggle("hidden-view");
+    $("vipDirToggle").textContent = nowHidden ? "전체 명단 보기 ▾" : "전체 명단 닫기 ▴";
+    if(!nowHidden) renderVipDirectory();
+  });
+
+  function vipListClickHandler(ev){
+    var btn = ev.target.closest("button[data-act]"); if(!btn) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    var id = item.getAttribute("data-id");
+    var m = vipCache.filter(function(x){ return x.id === id; })[0];
+    if(!m) return;
+    var act = btn.getAttribute("data-act");
+    if(act === "edit"){
+      vipEditId = id;
+      $("vipPopupTitle").textContent = "VIP 회원 수정";
+      $("vipName").value = m.name || "";
+      $("vipPhone").value = m.phone || "";
+      $("vipNote").value = m.note || "";
+      Array.prototype.forEach.call($("vipGenderGroup").querySelectorAll(".tone"), function(b){
+        b.setAttribute("aria-pressed", b.dataset.gender === (m.gender || "남자") ? "true" : "false");
+      });
+      $("vipFormMsg").textContent = "";
+      openPopup($("vipPopupOverlay"));
+    } else if(act === "del"){
+      if(confirm((m.name || "해당 회원") + " 회원을 삭제하시겠습니까?")){
+        window.VipDB.remove(id).catch(function(){ flash("삭제 실패"); });
+      }
+    }
+  }
+  $("vipResultArea").addEventListener("click", vipListClickHandler);
+  $("vipDirectory").addEventListener("click", vipListClickHandler);
+
+  $("vipGenderGroup").addEventListener("click", function(ev){
+    var b = ev.target.closest(".tone"); if(!b) return; pickInGroup(this, b);
+  });
+
+  $("vipAddBtn").addEventListener("click", function(){
+    vipEditId = null;
+    $("vipPopupTitle").textContent = "VIP 회원 추가";
+    $("vipName").value = ""; $("vipPhone").value = ""; $("vipNote").value = "";
+    Array.prototype.forEach.call($("vipGenderGroup").querySelectorAll(".tone"), function(b, i){
+      b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+    });
+    $("vipFormMsg").textContent = "";
+    openPopup($("vipPopupOverlay"));
+  });
+  $("vipPopupCloseBtn").addEventListener("click", function(){ closePopup($("vipPopupOverlay")); });
+
+  $("vipSaveBtn").addEventListener("click", function(){
+    var name = $("vipName").value.trim();
+    var phone = $("vipPhone").value.trim();
+    var note = $("vipNote").value.trim();
+    var genderBtn = $("vipGenderGroup").querySelector('.tone[aria-pressed="true"]');
+    var gender = genderBtn ? genderBtn.dataset.gender : "남자";
+    if(!name){ $("vipFormMsg").textContent = "이름을 입력하세요."; return; }
+    var id = vipEditId || (Date.now().toString(36) + Math.random().toString(36).slice(2,6));
+    var data = { name: name, phone: phone, gender: gender, note: note, ts: Date.now() };
+    $("vipSaveBtn").disabled = true;
+    window.VipDB.save(id, data).then(function(){
+      flash(vipEditId ? "수정됨 ✓" : "추가됨 ✓");
+      closePopup($("vipPopupOverlay"));
+    }).catch(function(){ $("vipFormMsg").textContent = "저장 실패. 다시 시도하세요."; }).finally(function(){
+      $("vipSaveBtn").disabled = false;
+    });
+  });
+
+  function startVipDb(){
+    function attach(){
+      window.VipDB.subscribe(function(list){
+        vipCache = list;
+        renderVipSearch();
+        renderVipDirectory();
+      });
+    }
+    if(window.VipDB){ attach(); }
+    else { window.addEventListener("vipdb-ready", attach, { once:true }); }
+  }
+  startVipDb();
 })();
 </script>
 <script type="module">
@@ -2267,6 +2430,7 @@ window.VocHelper = (function(){
   var sharedPostsCol = collection(db, "sharedPosts");
   var careBoardCol = collection(db, "careBoard");
   var schedulesCol = collection(db, "schedules");
+  var vipMembersCol = collection(db, "vipMembers");
 
   function idToEmail(id){ return id.trim().toLowerCase() + "@vochelper.local"; }
 
@@ -2478,6 +2642,24 @@ window.VocHelper = (function(){
     }
   };
   window.dispatchEvent(new Event("scheduledb-ready"));
+
+  window.VipDB = {
+    subscribe: function(onChange){
+      var q = query(vipMembersCol, orderBy("name"));
+      return onSnapshot(q, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          data.id = d.id;
+          list.push(data);
+        });
+        onChange(list);
+      }, function(err){ console.error("Firestore subscribe error", err); });
+    },
+    save: function(id, data){ return setDoc(doc(vipMembersCol, id), data); },
+    remove: function(id){ return deleteDoc(doc(vipMembersCol, id)); }
+  };
+  window.dispatchEvent(new Event("vipdb-ready"));
 </script>
 <script>
   if("serviceWorker" in navigator){
