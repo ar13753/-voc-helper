@@ -413,6 +413,7 @@
   <nav class="tabbar hidden-view" id="mainTabbar">
     <button class="tab-btn" data-tab="care"><span class="tab-icon">📢</span><span>케어보드</span></button>
     <button class="tab-btn" id="tabVocBtn"><span class="tab-icon">💬</span><span>VOC 도우미</span></button>
+    <button class="tab-btn" id="tabVipBtn"><span class="tab-icon">⭐</span><span>VIP</span></button>
     <button class="tab-btn" data-tab="pine"><span class="tab-icon">🌲</span><span>소나무숲</span></button>
     <button class="tab-btn" data-tab="home"><span class="tab-icon">👤</span><span>마이페이지</span></button>
   </nav>
@@ -422,8 +423,8 @@
     <h2 style="margin:0 0 4px">마이페이지</h2>
     <p class="muted" id="whoAmI" style="margin:0 0 12px"></p>
     <button class="home-btn" id="myInfoBtn" data-view="myInfo">✏️ 개인정보 수정</button>
-    <button class="home-btn" id="vipBtn" data-view="vip">⭐ VIP 회원 조회</button>
     <button class="home-btn" id="vocRequestsBtn" data-view="vocRequests" style="display:none">🔑 VOC 접근 요청 관리</button>
+    <button class="home-btn" id="vipRequestsBtn" data-view="vipRequests" style="display:none">⭐ VIP 조회 권한 관리</button>
     <button class="home-btn" id="scheduleUploadBtn" data-view="schedule" style="display:none">📅 캐디 배정 스케줄 업로드</button>
     <button class="ghost" id="logoutBtn" style="margin-top:6px">로그아웃</button>
   </section>
@@ -452,7 +453,7 @@
 
   <!-- VIP 회원 조회 -->
   <div id="vipView" class="hidden-view">
-  <button class="ghost back-btn" data-back>← 마이페이지로</button>
+  <button class="ghost back-btn" data-back>← 홈으로</button>
   <section class="card">
     <h2>⭐ VIP 회원 조회</h2>
     <p class="muted" style="margin:0 0 6px">이름 또는 전화번호 뒤 4자리로 검색하세요.</p>
@@ -464,6 +465,18 @@
       <button class="ghost" id="vipDirToggle">전체 명단 보기 ▾</button>
     </div>
     <div id="vipDirectory" class="saved-list hidden-view" style="margin-top:10px"></div>
+  </section>
+  </div>
+
+  <!-- 관리자: VIP 조회 권한 관리 -->
+  <div id="vipRequestsView" class="hidden-view">
+  <button class="ghost back-btn" data-back>← 홈으로</button>
+  <section class="card">
+    <h2>VIP 조회 권한 관리 <span id="vipReqCount" class="tag">0건</span></h2>
+    <p class="muted" style="margin:0 0 6px">VIP 명단 조회를 요청한 직원을 승인하거나 거절하세요.</p>
+    <div id="vipReqList" class="saved-list" style="margin-top:12px">
+      <p class="muted">대기 중인 요청이 없습니다.</p>
+    </div>
   </section>
   </div>
 
@@ -1106,7 +1119,7 @@ window.VocHelper = (function(){
   });
 
   /* ---------- 홈 메뉴 / 화면 전환 ---------- */
-  var TAB_VIEWS = { care:"care", voc:"voc", pine:"pine", home:"home" };
+  var TAB_VIEWS = { care:"care", voc:"voc", vip:"vip", pine:"pine", home:"home" };
   function showView(view){
     $("authView").classList.toggle("hidden-view", view !== "auth");
     $("deptPickView").classList.toggle("hidden-view", view !== "deptpick");
@@ -1116,6 +1129,7 @@ window.VocHelper = (function(){
     $("vocView").classList.toggle("hidden-view", view !== "voc");
     $("noticeView").classList.toggle("hidden-view", view !== "notice");
     $("vocRequestsView").classList.toggle("hidden-view", view !== "vocRequests");
+    $("vipRequestsView").classList.toggle("hidden-view", view !== "vipRequests");
     $("scheduleView").classList.toggle("hidden-view", view !== "schedule");
     $("myInfoView").classList.toggle("hidden-view", view !== "myInfo");
     $("vipView").classList.toggle("hidden-view", view !== "vip");
@@ -1127,7 +1141,7 @@ window.VocHelper = (function(){
     $("mainTabbar").classList.toggle("hidden-view", !showTabbar);
     $("careFabBtn").style.display = view === "care" ? "" : "none";
     Array.prototype.forEach.call(document.querySelectorAll("#mainTabbar .tab-btn"), function(b){
-      var tab = b.dataset.tab || (b.id === "tabVocBtn" ? "voc" : "");
+      var tab = b.dataset.tab || (b.id === "tabVocBtn" ? "voc" : (b.id === "tabVipBtn" ? "vip" : ""));
       b.classList.toggle("active", tab === view);
     });
   }
@@ -1141,6 +1155,7 @@ window.VocHelper = (function(){
     b.addEventListener("click", function(){ showView(b.dataset.tab); });
   });
   $("tabVocBtn").addEventListener("click", function(){ goToVoc(); });
+  $("tabVipBtn").addEventListener("click", function(){ goToVip(); });
 
   /* ---------- 로그인 / 회원가입 (Firebase Authentication) ---------- */
   var currentUser = null;
@@ -1336,6 +1351,58 @@ window.VocHelper = (function(){
     }
   });
 
+  function goToVip(){
+    if(!currentUser) return;
+    if(currentUser.role === "admin" || currentUser.vipAccess === "approved"){
+      showView("vip");
+      return;
+    }
+    if(currentUser.vipAccess === "pending"){
+      flash("관리자 승인 대기 중입니다");
+      return;
+    }
+    if(!confirm("VIP 회원 조회는 관리자 승인이 필요합니다. 승인요청 하시겠습니까?")) return;
+    window.VocAuth.requestVipAccess().then(function(){
+      currentUser.vipAccess = "pending";
+      flash("승인 요청을 보냈습니다. 관리자 승인을 기다려주세요");
+    });
+  }
+
+  var vipReqCache = [];
+  function renderVipRequests(){
+    $("vipReqCount").textContent = vipReqCache.length + "건";
+    if(vipReqCache.length === 0){
+      $("vipReqList").innerHTML = '<p class="muted">대기 중인 요청이 없습니다.</p>';
+      return;
+    }
+    $("vipReqList").innerHTML = vipReqCache.map(function(u){
+      return '<div class="saved-item" data-uid="' + u.uid + '">'
+        + '<div class="head"><strong>' + esc(u.realName || u.id || "") + '</strong>' + (u.department ? '<span class="tag">' + esc(u.department) + '</span>' : '') + '</div>'
+        + '<div class="acts">'
+        + '<button data-act="approve" class="action" style="padding:6px 12px">승인</button>'
+        + '<button data-act="reject" class="del">거절</button>'
+        + '</div></div>';
+    }).join("");
+  }
+  var vipReqUnsub = null;
+  $("vipRequestsBtn").addEventListener("click", function(){
+    if(vipReqUnsub) return;
+    vipReqUnsub = window.VocAuth.listVipRequests(function(list){
+      vipReqCache = list;
+      renderVipRequests();
+    });
+  });
+  $("vipReqList").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button[data-act]"); if(!btn) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    var uid = item.getAttribute("data-uid");
+    if(btn.dataset.act === "approve"){
+      window.VocAuth.approveVipAccess(uid).then(function(){ flash("승인 완료 ✓"); }).catch(function(){ flash("승인 실패"); });
+    } else if(btn.dataset.act === "reject"){
+      window.VocAuth.rejectVipAccess(uid).then(function(){ flash("거절 처리됨"); }).catch(function(){ flash("거절 실패"); });
+    }
+  });
+
   function needsProfileInfo(user){
     return !user.realName || (user.department === "캐디" && !user.phoneLast4);
   }
@@ -1343,6 +1410,7 @@ window.VocHelper = (function(){
     $("whoAmI").textContent = user.id + "님 (" + user.department + ")";
     $("careGreeting").textContent = "안녕하세요, " + (user.realName || user.id) + "님";
     $("vocRequestsBtn").style.display = user.role === "admin" ? "" : "none";
+    $("vipRequestsBtn").style.display = user.role === "admin" ? "" : "none";
     $("scheduleUploadBtn").style.display = user.role === "admin" ? "" : "none";
     showView("care");
     startCareBoard();
@@ -2491,6 +2559,7 @@ window.VocHelper = (function(){
             department: profile.department || "",
             role: profile.role || "",
             vocAccess: profile.vocAccess || "none",
+            vipAccess: profile.vipAccess || "none",
             realName: profile.realName || "",
             phoneLast4: profile.phoneLast4 || ""
           });
@@ -2509,6 +2578,27 @@ window.VocHelper = (function(){
     },
     listVocRequests: function(onChange){
       var q = query(usersCol, where("vocAccess", "==", "pending"));
+      return onSnapshot(q, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          data.uid = d.id;
+          list.push(data);
+        });
+        onChange(list);
+      });
+    },
+    requestVipAccess: function(){
+      return setDoc(doc(usersCol, auth.currentUser.uid), { vipAccess: "pending" }, { merge: true });
+    },
+    approveVipAccess: function(uid){
+      return setDoc(doc(usersCol, uid), { vipAccess: "approved" }, { merge: true });
+    },
+    rejectVipAccess: function(uid){
+      return setDoc(doc(usersCol, uid), { vipAccess: "none" }, { merge: true });
+    },
+    listVipRequests: function(onChange){
+      var q = query(usersCol, where("vipAccess", "==", "pending"));
       return onSnapshot(q, function(snap){
         var list = [];
         snap.forEach(function(d){
