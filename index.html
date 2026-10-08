@@ -213,6 +213,13 @@
   .care-card.course{ border-left-color:var(--ok) }
   .care-card.share{ border-left-color:var(--info) }
   .care-card.completed{ opacity:.65 }
+  .vip-avatar{
+    width:32px; height:32px; border-radius:50%; flex-shrink:0; overflow:hidden;
+    background:var(--chip); color:var(--muted); font-weight:700;
+    display:inline-flex; align-items:center; justify-content:center; font-size:13px;
+  }
+  .vip-avatar img{ width:100%; height:100%; object-fit:cover; display:block }
+  .vip-avatar-lg{ width:56px; height:56px; font-size:20px }
   .care-card.assigned-mine{ box-shadow:0 0 0 2px var(--warn) inset }
   .care-badge-assignee{ background:var(--badge-vip-bg); color:var(--badge-vip-ink); font-weight:700 }
   .care-card-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px }
@@ -494,6 +501,11 @@
       </div>
       <label style="margin-top:10px">비고</label>
       <input type="text" id="vipNote" placeholder="예: 26년 VIP">
+      <label style="margin-top:10px">사진 (선택)</label>
+      <div class="row" style="align-items:center; gap:10px">
+        <div class="vip-avatar vip-avatar-lg" id="vipPhotoPreview">?</div>
+        <input type="file" id="vipPhotoInput" accept="image/*" style="flex:1">
+      </div>
       <div class="row">
         <button class="ghost" id="vipPopupCloseBtn">취소</button>
         <button class="action" id="vipSaveBtn">저장</button>
@@ -2340,8 +2352,9 @@ window.VocHelper = (function(){
   function normalizeVip(str){ return (str || "").replace(/[\s-]/g, ""); }
 
   function vipRowHtml(m){
+    var avatar = m.photoUrl ? '<img src="' + m.photoUrl + '" alt="">' : esc((m.name || "?").charAt(0));
     return '<div class="saved-item" data-id="' + m.id + '">'
-      + '<div class="head"><strong>' + esc(m.name || "") + '</strong>'
+      + '<div class="head"><span class="vip-avatar">' + avatar + '</span><strong>' + esc(m.name || "") + '</strong>'
       + '<span class="tag">' + esc(m.gender || "") + '</span>'
       + '<span class="when">' + esc(m.phone || "번호 미등록") + '</span></div>'
       + (m.note ? '<div class="peek">' + esc(m.note) + '</div>' : '')
@@ -2381,6 +2394,21 @@ window.VocHelper = (function(){
     if(!nowHidden) renderVipDirectory();
   });
 
+  var vipPhotoFile = null;
+
+  function setVipPhotoPreview(url, initial){
+    $("vipPhotoPreview").innerHTML = url ? '<img src="' + url + '" alt="">' : esc(initial || "?");
+  }
+
+  $("vipPhotoInput").addEventListener("change", function(){
+    vipPhotoFile = this.files[0] || null;
+    if(vipPhotoFile){
+      var reader = new FileReader();
+      reader.onload = function(e){ setVipPhotoPreview(e.target.result); };
+      reader.readAsDataURL(vipPhotoFile);
+    }
+  });
+
   function vipListClickHandler(ev){
     var btn = ev.target.closest("button[data-act]"); if(!btn) return;
     var item = ev.target.closest(".saved-item"); if(!item) return;
@@ -2390,10 +2418,13 @@ window.VocHelper = (function(){
     var act = btn.getAttribute("data-act");
     if(act === "edit"){
       vipEditId = id;
+      vipPhotoFile = null;
       $("vipPopupTitle").textContent = "VIP 회원 수정";
       $("vipName").value = m.name || "";
       $("vipPhone").value = m.phone || "";
       $("vipNote").value = m.note || "";
+      $("vipPhotoInput").value = "";
+      setVipPhotoPreview(m.photoUrl, (m.name || "?").charAt(0));
       Array.prototype.forEach.call($("vipGenderGroup").querySelectorAll(".tone"), function(b){
         b.setAttribute("aria-pressed", b.dataset.gender === (m.gender || "남자") ? "true" : "false");
       });
@@ -2414,8 +2445,11 @@ window.VocHelper = (function(){
 
   $("vipAddBtn").addEventListener("click", function(){
     vipEditId = null;
+    vipPhotoFile = null;
     $("vipPopupTitle").textContent = "VIP 회원 추가";
     $("vipName").value = ""; $("vipPhone").value = ""; $("vipNote").value = "";
+    $("vipPhotoInput").value = "";
+    setVipPhotoPreview(null, "?");
     Array.prototype.forEach.call($("vipGenderGroup").querySelectorAll(".tone"), function(b, i){
       b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
     });
@@ -2434,8 +2468,19 @@ window.VocHelper = (function(){
     var id = vipEditId || (Date.now().toString(36) + Math.random().toString(36).slice(2,6));
     var data = { name: name, phone: phone, gender: gender, note: note, ts: Date.now() };
     $("vipSaveBtn").disabled = true;
-    window.VipDB.save(id, data).then(function(){
+    var uploadPromise = vipPhotoFile ? window.VipDB.uploadPhoto(id, vipPhotoFile) : Promise.resolve(null);
+    uploadPromise.then(function(photo){
+      if(photo){
+        data.photoUrl = photo.url;
+        data.photoPath = photo.path;
+      } else if(vipEditId){
+        var existing = vipCache.filter(function(x){ return x.id === vipEditId; })[0];
+        if(existing && existing.photoUrl){ data.photoUrl = existing.photoUrl; data.photoPath = existing.photoPath; }
+      }
+      return window.VipDB.save(id, data);
+    }).then(function(){
       flash(vipEditId ? "수정됨 ✓" : "추가됨 ✓");
+      vipPhotoFile = null;
       closePopup($("vipPopupOverlay"));
     }).catch(function(){ $("vipFormMsg").textContent = "저장 실패. 다시 시도하세요."; }).finally(function(){
       $("vipSaveBtn").disabled = false;
@@ -2747,7 +2792,16 @@ window.VocHelper = (function(){
       }, function(err){ console.error("Firestore subscribe error", err); });
     },
     save: function(id, data){ return setDoc(doc(vipMembersCol, id), data); },
-    remove: function(id){ return deleteDoc(doc(vipMembersCol, id)); }
+    remove: function(id){ return deleteDoc(doc(vipMembersCol, id)); },
+    uploadPhoto: function(id, file){
+      var path = "vipPhotos/" + id + "-" + file.name;
+      var fileRef = storageRef(storage, path);
+      return uploadBytes(fileRef, file).then(function(){
+        return getDownloadURL(fileRef);
+      }).then(function(url){
+        return { url: url, path: path };
+      });
+    }
   };
   window.dispatchEvent(new Event("vipdb-ready"));
 </script>
