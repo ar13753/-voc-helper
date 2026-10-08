@@ -357,8 +357,10 @@
       <button class="tone" data-course="밸리" aria-pressed="false">밸리 코스</button>
       <button class="tone" data-course="레이크" aria-pressed="false">레이크 코스</button>
     </div>
-    <div class="row" style="align-items:center; gap:8px; margin-top:8px">
-      <input type="date" id="careDateInput">
+    <div class="row" style="align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap">
+      <input type="date" id="careDateFromInput" style="flex:1; min-width:130px">
+      <span class="muted">~</span>
+      <input type="date" id="careDateToInput" style="flex:1; min-width:130px">
       <button class="ghost" id="careDateTodayBtn">오늘</button>
     </div>
     <div id="careFeed" class="care-feed" style="margin-top:12px"><p class="muted">불러오는 중…</p></div>
@@ -2114,7 +2116,8 @@ window.VocHelper = (function(){
     return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
   }
 
-  var careDateFilter = todayDateStr(0);
+  var careDateFrom = todayDateStr(0);
+  var careDateTo = todayDateStr(0);
   function dateStrFromTs(ts){
     var d = new Date(ts);
     function p(n){ return (n<10?"0":"") + n; }
@@ -2257,7 +2260,8 @@ window.VocHelper = (function(){
 
   function renderCareFeed(){
     var list = careCache.filter(function(p){
-      if(dateStrFromTs(p.ts) !== careDateFilter) return false;
+      var d = dateStrFromTs(p.ts);
+      if(d < careDateFrom || d > careDateTo) return false;
       if(careFilter === "ALL") return true;
       return p.course === careFilter || p.course === "공통";
     });
@@ -2266,9 +2270,11 @@ window.VocHelper = (function(){
       if(aDone !== bDone) return aDone ? 1 : -1;
       return aDone ? (b.ts - a.ts) : (a.ts - b.ts);
     });
-    var isToday = careDateFilter === todayDateStr(0);
+    var today = todayDateStr(0);
+    var isTodayOnly = careDateFrom === today && careDateTo === today;
+    var rangeLabel = isTodayOnly ? "오늘" : (careDateFrom === careDateTo ? careDateFrom : (careDateFrom + " ~ " + careDateTo));
     $("careFeed").innerHTML = list.length === 0
-      ? '<p class="muted">' + (isToday ? "오늘 등록된 케어 공지가 없습니다." : (careDateFilter + " 에 등록된 케어 공지가 없습니다.")) + '</p>'
+      ? '<p class="muted">' + rangeLabel + ' 기간에 등록된 케어 공지가 없습니다.</p>'
       : list.map(careCardHtml).join("");
     renderCareSummary();
   }
@@ -2280,15 +2286,30 @@ window.VocHelper = (function(){
     renderCareFeed();
   });
 
-  $("careDateInput").value = careDateFilter;
-  $("careDateInput").max = todayDateStr(0);
-  $("careDateInput").addEventListener("change", function(){
-    careDateFilter = this.value || todayDateStr(0);
+  $("careDateFromInput").value = careDateFrom;
+  $("careDateToInput").value = careDateTo;
+  $("careDateToInput").max = todayDateStr(0);
+  $("careDateFromInput").addEventListener("change", function(){
+    careDateFrom = this.value || todayDateStr(0);
+    if(careDateFrom > careDateTo){
+      careDateTo = careDateFrom;
+      $("careDateToInput").value = careDateTo;
+    }
+    renderCareFeed();
+  });
+  $("careDateToInput").addEventListener("change", function(){
+    careDateTo = this.value || todayDateStr(0);
+    if(careDateTo < careDateFrom){
+      careDateFrom = careDateTo;
+      $("careDateFromInput").value = careDateFrom;
+    }
     renderCareFeed();
   });
   $("careDateTodayBtn").addEventListener("click", function(){
-    careDateFilter = todayDateStr(0);
-    $("careDateInput").value = careDateFilter;
+    careDateFrom = todayDateStr(0);
+    careDateTo = todayDateStr(0);
+    $("careDateFromInput").value = careDateFrom;
+    $("careDateToInput").value = careDateTo;
     renderCareFeed();
   });
 
