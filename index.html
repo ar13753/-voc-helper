@@ -357,6 +357,10 @@
       <button class="tone" data-course="밸리" aria-pressed="false">밸리 코스</button>
       <button class="tone" data-course="레이크" aria-pressed="false">레이크 코스</button>
     </div>
+    <div class="row" style="align-items:center; gap:8px; margin-top:8px">
+      <input type="date" id="careDateInput">
+      <button class="ghost" id="careDateTodayBtn">오늘</button>
+    </div>
     <div id="careFeed" class="care-feed" style="margin-top:12px"><p class="muted">불러오는 중…</p></div>
   </div>
 
@@ -2110,6 +2114,13 @@ window.VocHelper = (function(){
     return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
   }
 
+  var careDateFilter = todayDateStr(0);
+  function dateStrFromTs(ts){
+    var d = new Date(ts);
+    function p(n){ return (n<10?"0":"") + n; }
+    return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
+  }
+
   function fmtCareTime(ts){
     var d = new Date(ts);
     function p(n){ return (n<10?"0":"") + n; }
@@ -2238,11 +2249,13 @@ window.VocHelper = (function(){
 
   function renderCareFeed(){
     var list = careCache.filter(function(p){
+      if(dateStrFromTs(p.ts) !== careDateFilter) return false;
       if(careFilter === "ALL") return true;
       return p.course === careFilter || p.course === "공통";
     });
+    var isToday = careDateFilter === todayDateStr(0);
     $("careFeed").innerHTML = list.length === 0
-      ? '<p class="muted">등록된 케어 공지가 없습니다.</p>'
+      ? '<p class="muted">' + (isToday ? "오늘 등록된 케어 공지가 없습니다." : (careDateFilter + " 에 등록된 케어 공지가 없습니다.")) + '</p>'
       : list.map(careCardHtml).join("");
     renderCareSummary();
   }
@@ -2251,6 +2264,18 @@ window.VocHelper = (function(){
     var b = ev.target.closest(".tone"); if(!b) return;
     pickInGroup(this, b);
     careFilter = b.dataset.course;
+    renderCareFeed();
+  });
+
+  $("careDateInput").value = careDateFilter;
+  $("careDateInput").max = todayDateStr(0);
+  $("careDateInput").addEventListener("change", function(){
+    careDateFilter = this.value || todayDateStr(0);
+    renderCareFeed();
+  });
+  $("careDateTodayBtn").addEventListener("click", function(){
+    careDateFilter = todayDateStr(0);
+    $("careDateInput").value = careDateFilter;
     renderCareFeed();
   });
 
