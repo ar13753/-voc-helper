@@ -2352,7 +2352,7 @@ window.VocHelper = (function(){
   function normalizeVip(str){ return (str || "").replace(/[\s-]/g, ""); }
 
   function vipRowHtml(m){
-    var avatar = m.photoUrl ? '<img src="' + m.photoUrl + '" alt="">' : esc((m.name || "?").charAt(0));
+    var avatar = m.photo ? '<img src="' + m.photo + '" alt="">' : esc((m.name || "?").charAt(0));
     return '<div class="saved-item" data-id="' + m.id + '">'
       + '<div class="head"><span class="vip-avatar">' + avatar + '</span><strong>' + esc(m.name || "") + '</strong>'
       + '<span class="tag">' + esc(m.gender || "") + '</span>'
@@ -2394,19 +2394,43 @@ window.VocHelper = (function(){
     if(!nowHidden) renderVipDirectory();
   });
 
-  var vipPhotoFile = null;
+  var vipPhotoData = null;
 
   function setVipPhotoPreview(url, initial){
     $("vipPhotoPreview").innerHTML = url ? '<img src="' + url + '" alt="">' : esc(initial || "?");
   }
 
-  $("vipPhotoInput").addEventListener("change", function(){
-    vipPhotoFile = this.files[0] || null;
-    if(vipPhotoFile){
+  // 사진을 정사각형으로 잘라 작은 용량(JPEG)으로 리사이즈한 뒤 Firestore 문서에 직접 저장
+  function resizePhotoToDataUrl(file, size){
+    return new Promise(function(resolve, reject){
       var reader = new FileReader();
-      reader.onload = function(e){ setVipPhotoPreview(e.target.result); };
-      reader.readAsDataURL(vipPhotoFile);
-    }
+      reader.onload = function(ev){
+        var img = new Image();
+        img.onload = function(){
+          var canvas = document.createElement("canvas");
+          canvas.width = size; canvas.height = size;
+          var ctx = canvas.getContext("2d");
+          var minSide = Math.min(img.width, img.height);
+          var sx = (img.width - minSide) / 2;
+          var sy = (img.height - minSide) / 2;
+          ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+          resolve(canvas.toDataURL("image/jpeg", 0.82));
+        };
+        img.onerror = function(){ reject(new Error("이미지를 읽을 수 없습니다")); };
+        img.src = ev.target.result;
+      };
+      reader.onerror = function(){ reject(new Error("파일을 읽을 수 없습니다")); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  $("vipPhotoInput").addEventListener("change", function(){
+    var file = this.files[0];
+    if(!file) return;
+    resizePhotoToDataUrl(file, 240).then(function(dataUrl){
+      vipPhotoData = dataUrl;
+      setVipPhotoPreview(dataUrl);
+    }).catch(function(){ flash("사진을 불러오지 못했습니다"); });
   });
 
   function vipListClickHandler(ev){
@@ -2418,13 +2442,13 @@ window.VocHelper = (function(){
     var act = btn.getAttribute("data-act");
     if(act === "edit"){
       vipEditId = id;
-      vipPhotoFile = null;
+      vipPhotoData = null;
       $("vipPopupTitle").textContent = "VIP 회원 수정";
       $("vipName").value = m.name || "";
       $("vipPhone").value = m.phone || "";
       $("vipNote").value = m.note || "";
       $("vipPhotoInput").value = "";
-      setVipPhotoPreview(m.photoUrl, (m.name || "?").charAt(0));
+      setVipPhotoPreview(m.photo, (m.name || "?").charAt(0));
       Array.prototype.forEach.call($("vipGenderGroup").querySelectorAll(".tone"), function(b){
         b.setAttribute("aria-pressed", b.dataset.gender === (m.gender || "남자") ? "true" : "false");
       });
@@ -2445,7 +2469,7 @@ window.VocHelper = (function(){
 
   $("vipAddBtn").addEventListener("click", function(){
     vipEditId = null;
-    vipPhotoFile = null;
+    vipPhotoData = null;
     $("vipPopupTitle").textContent = "VIP 회원 추가";
     $("vipName").value = ""; $("vipPhone").value = ""; $("vipNote").value = "";
     $("vipPhotoInput").value = "";
@@ -2467,20 +2491,16 @@ window.VocHelper = (function(){
     if(!name){ $("vipFormMsg").textContent = "이름을 입력하세요."; return; }
     var id = vipEditId || (Date.now().toString(36) + Math.random().toString(36).slice(2,6));
     var data = { name: name, phone: phone, gender: gender, note: note, ts: Date.now() };
+    if(vipPhotoData){
+      data.photo = vipPhotoData;
+    } else if(vipEditId){
+      var existing = vipCache.filter(function(x){ return x.id === vipEditId; })[0];
+      if(existing && existing.photo){ data.photo = existing.photo; }
+    }
     $("vipSaveBtn").disabled = true;
-    var uploadPromise = vipPhotoFile ? window.VipDB.uploadPhoto(id, vipPhotoFile) : Promise.resolve(null);
-    uploadPromise.then(function(photo){
-      if(photo){
-        data.photoUrl = photo.url;
-        data.photoPath = photo.path;
-      } else if(vipEditId){
-        var existing = vipCache.filter(function(x){ return x.id === vipEditId; })[0];
-        if(existing && existing.photoUrl){ data.photoUrl = existing.photoUrl; data.photoPath = existing.photoPath; }
-      }
-      return window.VipDB.save(id, data);
-    }).then(function(){
+    window.VipDB.save(id, data).then(function(){
       flash(vipEditId ? "수정됨 ✓" : "추가됨 ✓");
-      vipPhotoFile = null;
+      vipPhotoData = null;
       closePopup($("vipPopupOverlay"));
     }).catch(function(){ $("vipFormMsg").textContent = "저장 실패. 다시 시도하세요."; }).finally(function(){
       $("vipSaveBtn").disabled = false;
@@ -2792,16 +2812,7 @@ window.VocHelper = (function(){
       }, function(err){ console.error("Firestore subscribe error", err); });
     },
     save: function(id, data){ return setDoc(doc(vipMembersCol, id), data); },
-    remove: function(id){ return deleteDoc(doc(vipMembersCol, id)); },
-    uploadPhoto: function(id, file){
-      var path = "vipPhotos/" + id + "-" + file.name;
-      var fileRef = storageRef(storage, path);
-      return uploadBytes(fileRef, file).then(function(){
-        return getDownloadURL(fileRef);
-      }).then(function(url){
-        return { url: url, path: path };
-      });
-    }
+    remove: function(id){ return deleteDoc(doc(vipMembersCol, id)); }
   };
   window.dispatchEvent(new Event("vipdb-ready"));
 </script>
