@@ -2212,6 +2212,14 @@ window.VocHelper = (function(){
     $("careSummary").innerHTML = parts.join("");
   }
 
+  function isCareDone(p){
+    if(p.type === "urgent"){
+      var ackBy = p.ackBy || [];
+      return !!(currentUser && ackBy.indexOf(currentUser.uid) > -1);
+    }
+    return !!p.resolved;
+  }
+
   function careCardHtml(p){
     var isUrgent = p.type === "urgent";
     var badge = isUrgent
@@ -2252,6 +2260,11 @@ window.VocHelper = (function(){
       if(dateStrFromTs(p.ts) !== careDateFilter) return false;
       if(careFilter === "ALL") return true;
       return p.course === careFilter || p.course === "공통";
+    });
+    list = list.slice().sort(function(a, b){
+      var aDone = isCareDone(a), bDone = isCareDone(b);
+      if(aDone !== bDone) return aDone ? 1 : -1;
+      return aDone ? (b.ts - a.ts) : (a.ts - b.ts);
     });
     var isToday = careDateFilter === todayDateStr(0);
     $("careFeed").innerHTML = list.length === 0
