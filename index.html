@@ -214,12 +214,13 @@
   .care-card.share{ border-left-color:var(--info) }
   .care-card.completed{ opacity:.65 }
   .vip-avatar{
-    width:32px; height:32px; border-radius:50%; flex-shrink:0; overflow:hidden;
-    background:var(--chip); color:var(--muted); font-weight:700;
-    display:inline-flex; align-items:center; justify-content:center; font-size:13px;
+    width:44px; height:44px; border-radius:50%; flex-shrink:0; overflow:hidden;
+    background:var(--chip); color:var(--muted); font-weight:700; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; font-size:17px;
   }
   .vip-avatar img{ width:100%; height:100%; object-fit:cover; display:block }
-  .vip-avatar-lg{ width:56px; height:56px; font-size:20px }
+  .vip-avatar-lg{ width:56px; height:56px; font-size:20px; cursor:default }
+  .vip-avatar-xl{ width:220px; height:220px; font-size:80px; cursor:default }
   .care-card.assigned-mine{ box-shadow:0 0 0 2px var(--warn) inset }
   .care-badge-assignee{ background:var(--badge-vip-bg); color:var(--badge-vip-ink); font-weight:700 }
   .care-card-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px }
@@ -525,6 +526,19 @@
         <button class="action" id="vipSaveBtn">저장</button>
       </div>
       <p id="vipFormMsg" class="muted" style="min-height:1.2em"></p>
+    </div>
+  </div>
+
+  <div id="vipDetailOverlay" class="popup-overlay">
+    <div class="popup-card" style="text-align:center">
+      <div class="vip-avatar vip-avatar-xl" id="vipDetailPhoto" style="margin:0 auto">?</div>
+      <h2 id="vipDetailName" style="margin:14px 0 2px"></h2>
+      <p class="tag" id="vipDetailGender" style="display:inline-block"></p>
+      <p class="muted" id="vipDetailPhone" style="font-size:18px; margin:10px 0 4px"></p>
+      <p id="vipDetailNote" style="margin:4px 0 0"></p>
+      <div class="row">
+        <button class="ghost" id="vipDetailCloseBtn">닫기</button>
+      </div>
     </div>
   </div>
 
@@ -2403,7 +2417,7 @@ window.VocHelper = (function(){
 
   function vipRowHtml(m){
     var avatar = m.photo ? '<img src="' + m.photo + '" alt="">' : esc((m.name || "?").charAt(0));
-    return '<div class="saved-item" data-id="' + m.id + '">'
+    return '<div class="saved-item" data-id="' + m.id + '" style="cursor:pointer">'
       + '<div class="head"><span class="vip-avatar">' + avatar + '</span><strong>' + esc(m.name || "") + '</strong>'
       + '<span class="tag">' + esc(m.gender || "") + '</span>'
       + '<span class="when">' + esc(m.phone || "번호 미등록") + '</span></div>'
@@ -2483,12 +2497,26 @@ window.VocHelper = (function(){
     }).catch(function(){ flash("사진을 불러오지 못했습니다"); });
   });
 
+  function showVipDetail(m){
+    $("vipDetailPhoto").innerHTML = m.photo ? '<img src="' + m.photo + '" alt="">' : esc((m.name || "?").charAt(0));
+    $("vipDetailName").textContent = m.name || "";
+    $("vipDetailGender").textContent = m.gender || "";
+    $("vipDetailPhone").textContent = m.phone || "번호 미등록";
+    $("vipDetailNote").textContent = m.note || "";
+    openPopup($("vipDetailOverlay"));
+  }
+  $("vipDetailCloseBtn").addEventListener("click", function(){ closePopup($("vipDetailOverlay")); });
+
   function vipListClickHandler(ev){
-    var btn = ev.target.closest("button[data-act]"); if(!btn) return;
     var item = ev.target.closest(".saved-item"); if(!item) return;
     var id = item.getAttribute("data-id");
     var m = vipCache.filter(function(x){ return x.id === id; })[0];
     if(!m) return;
+    var btn = ev.target.closest("button[data-act]");
+    if(!btn){
+      showVipDetail(m);
+      return;
+    }
     var act = btn.getAttribute("data-act");
     if(act === "edit"){
       vipEditId = id;
