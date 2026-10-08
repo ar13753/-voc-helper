@@ -2248,7 +2248,7 @@ window.VocHelper = (function(){
     var cardTypeClass = isUrgent ? "urgent" : (p.type === "vip" ? "vip" : (p.type === "course" ? "course" : "share"));
     var isAssignedToMe = !!(p.assignee && currentUser && currentUser.realName && p.assignee.trim() === currentUser.realName.trim());
     var assigneeBadge = p.assignee ? ' <span class="tag care-badge-assignee">👤 ' + esc(p.assignee) + '님 지정' + (isAssignedToMe ? " · 나" : "") + '</span>' : "";
-    return '<div class="care-card ' + cardTypeClass + (p.resolved ? " completed" : "") + (isAssignedToMe ? " assigned-mine" : "") + '">'
+    return '<div class="care-card ' + cardTypeClass + (isCareDone(p) ? " completed" : "") + (isAssignedToMe ? " assigned-mine" : "") + '">'
       + '<div class="care-card-top">' + badge + '<span class="care-time">' + fmtCareTime(p.ts) + '</span></div>'
       + '<h3 class="care-title">' + esc(p.title || "") + (p.course && p.course !== "공통" ? ' <span class="tag">' + esc(p.course) + '</span>' : "") + assigneeBadge + '</h3>'
       + '<p class="care-body ' + (isUrgent ? "highlight" : "plain") + '">' + esc(p.content || "") + '</p>'
