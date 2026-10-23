@@ -423,6 +423,18 @@
     </div>
   </div>
 
+  <!-- 대면교육 예약 안내 팝업 -->
+  <div id="trainingReminderOverlay" class="popup-overlay">
+    <div class="popup-card">
+      <h2>📚 대면교육 예약 안내</h2>
+      <p id="trainingReminderBody" class="muted" style="margin:0 0 4px"></p>
+      <div class="row">
+        <button class="ghost" id="trainingReminderCloseBtn">나중에</button>
+        <button class="action" id="trainingReminderGoBtn">예약하러 가기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 하단 탭바 -->
   <nav class="tabbar hidden-view" id="mainTabbar">
     <button class="tab-btn" data-tab="care"><span class="tab-icon">📢</span><span>케어보드</span></button>
@@ -1526,6 +1538,7 @@ window.VocHelper = (function(){
   function needsProfileInfo(user){
     return !user.realName || (user.department === "캐디" && !user.phoneLast4);
   }
+  var trainingAlertShownForUid = null;
   function updateTrainingReminder(user){
     var el = $("trainingReminder");
     $("trainingBookingBtn").style.display = user && user.trainingRequired ? "" : "none";
@@ -1535,6 +1548,12 @@ window.VocHelper = (function(){
     el.style.color = user.trainingCompleted ? "var(--ok, #2a8f4d)" : "var(--danger)";
     el.textContent = "📚 대면교육 " + statusText + (user.trainingDeadline ? " · 기한 " + user.trainingDeadline : "");
     renderTrainingBookingView();
+
+    if(!user.trainingCompleted && trainingAlertShownForUid !== user.uid){
+      trainingAlertShownForUid = user.uid;
+      $("trainingReminderBody").textContent = "대면교육 " + statusText + (user.trainingDeadline ? " · 기한: " + user.trainingDeadline : "") + ". 기한 내에 시간대를 예약해주세요.";
+      openPopup($("trainingReminderOverlay"));
+    }
   }
 
   function enterCare(user){
@@ -2956,9 +2975,17 @@ window.VocHelper = (function(){
     }).join("");
   }
 
-  $("trainingBookingBtn").addEventListener("click", function(){
+  function openTrainingBooking(){
+    showView("trainingBooking");
     ensureTrainingSlotsLoaded();
     renderTrainingBookingView();
+  }
+  $("trainingBookingBtn").addEventListener("click", openTrainingBooking);
+
+  $("trainingReminderCloseBtn").addEventListener("click", function(){ closePopup($("trainingReminderOverlay")); });
+  $("trainingReminderGoBtn").addEventListener("click", function(){
+    closePopup($("trainingReminderOverlay"));
+    openTrainingBooking();
   });
 
   $("trainingSlotPicker").addEventListener("click", function(ev){
