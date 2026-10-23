@@ -3321,13 +3321,17 @@ window.VocHelper = (function(){
 
   window.TrainingDB = {
     subscribeSlots: function(onChange){
-      var q = query(trainingSlotsCol, orderBy("date"), orderBy("time"));
+      var q = query(trainingSlotsCol, orderBy("date"));
       return onSnapshot(q, function(snap){
         var list = [];
         snap.forEach(function(d){
           var data = d.data();
           data.id = d.id;
           list.push(data);
+        });
+        list.sort(function(a, b){
+          if(a.date !== b.date) return a.date < b.date ? -1 : 1;
+          return (a.time || "").localeCompare(b.time || "");
         });
         onChange(list);
       }, function(err){ console.error("Firestore subscribe error", err); });
