@@ -435,11 +435,15 @@
   <!-- 마이페이지 (기존 홈 메뉴) -->
   <section id="homeView" class="card home-menu hidden-view">
     <h2 style="margin:0 0 4px">마이페이지</h2>
-    <p class="muted" id="whoAmI" style="margin:0 0 12px"></p>
+    <p class="muted" id="whoAmI" style="margin:0 0 6px"></p>
+    <p class="muted" id="trainingReminder" style="display:none; margin:0 0 12px; font-weight:600"></p>
+    <button class="home-btn" id="trainingBookingBtn" data-view="trainingBooking" style="display:none">📚 대면교육 예약</button>
     <button class="home-btn" id="myInfoBtn" data-view="myInfo">✏️ 개인정보 수정</button>
     <button class="home-btn" id="vocRequestsBtn" data-view="vocRequests" style="display:none">🔑 VOC 접근 요청 관리</button>
     <button class="home-btn" id="vipRequestsBtn" data-view="vipRequests" style="display:none">⭐ VIP 조회 권한 관리</button>
     <button class="home-btn" id="scheduleUploadBtn" data-view="schedule" style="display:none">📅 캐디 배정 스케줄 업로드</button>
+    <button class="home-btn" id="trainingTargetsBtn" data-view="trainingTargets" style="display:none">🎓 대면교육 대상자 지정</button>
+    <button class="home-btn" id="trainingSlotsBtn" data-view="trainingSlots" style="display:none">📅 대면교육 시간대 관리</button>
     <button class="ghost" id="logoutBtn" style="margin-top:6px">로그아웃</button>
   </section>
 
@@ -564,6 +568,72 @@
       <button class="action" id="scheduleSaveBtn">업로드</button>
     </div>
     <p id="scheduleMsg" class="muted" style="min-height:1.2em"></p>
+  </section>
+  </div>
+
+  <!-- 관리자: 대면교육 시간대 관리 -->
+  <div id="trainingSlotsView" class="hidden-view">
+  <button class="ghost back-btn" data-back>← 마이페이지로</button>
+  <section class="card">
+    <h2>📅 대면교육 시간대 관리</h2>
+    <p class="muted" style="margin:0 0 6px">예약 가능한 시간대를 추가하고, 정원과 예약 현황을 확인하세요.</p>
+    <label>날짜</label>
+    <input type="date" id="trainingSlotDate">
+    <label style="margin-top:10px">시간</label>
+    <input type="text" id="trainingSlotTime" placeholder="예: 14:00~15:30">
+    <label style="margin-top:10px">정원</label>
+    <input type="number" id="trainingSlotCapacity" min="1" value="5" style="width:100px">
+    <div class="row">
+      <button class="action" id="trainingSlotAddBtn">시간대 추가</button>
+    </div>
+    <p id="trainingSlotMsg" class="muted" style="min-height:1.2em"></p>
+    <div id="trainingSlotList" class="saved-list" style="margin-top:10px">
+      <p class="muted">등록된 시간대가 없습니다.</p>
+    </div>
+  </section>
+  </div>
+
+  <!-- 관리자: 대면교육 대상자 지정 -->
+  <div id="trainingTargetsView" class="hidden-view">
+  <button class="ghost back-btn" data-back>← 마이페이지로</button>
+  <section class="card">
+    <h2>🎓 대면교육 대상자 지정</h2>
+    <p class="muted" style="margin:0 0 6px">이름 또는 휴대폰 뒷자리 4자리로 직원을 검색해 교육 대상자로 지정하세요.</p>
+    <input type="text" id="trainingSearchInput" placeholder="예: 홍길동 또는 5945">
+    <div id="trainingSearchResult" class="saved-list" style="margin-top:8px"></div>
+    <h3 style="margin:18px 0 6px">현재 대상자 <span id="trainingTargetCount" class="tag">0명</span></h3>
+    <div id="trainingTargetList" class="saved-list">
+      <p class="muted">지정된 대상자가 없습니다.</p>
+    </div>
+  </section>
+  </div>
+
+  <div id="trainingDeadlinePopupOverlay" class="popup-overlay">
+    <div class="popup-card">
+      <h2>교육 대상 지정</h2>
+      <p class="muted" id="trainingDeadlineTargetName" style="margin:0 0 10px"></p>
+      <label>이수 기한</label>
+      <input type="date" id="trainingDeadlineInput">
+      <div class="row">
+        <button class="ghost" id="trainingDeadlineCancelBtn">취소</button>
+        <button class="action" id="trainingDeadlineSaveBtn">지정</button>
+      </div>
+      <p id="trainingDeadlineMsg" class="muted" style="min-height:1.2em"></p>
+    </div>
+  </div>
+
+  <!-- 대면교육 예약 (직원) -->
+  <div id="trainingBookingView" class="hidden-view">
+  <button class="ghost back-btn" data-back>← 마이페이지로</button>
+  <section class="card">
+    <h2>📚 대면교육 예약</h2>
+    <p id="trainingBookingStatus" class="muted" style="margin:0 0 6px"></p>
+    <div class="row">
+      <button class="ghost" id="trainingBookingCancelBtn" style="display:none">예약 취소</button>
+    </div>
+    <p class="muted" style="margin:10px 0 4px">예약 가능한 시간대</p>
+    <div id="trainingSlotPicker" class="saved-list"></div>
+    <p id="trainingBookingMsg" class="muted" style="min-height:1.2em"></p>
   </section>
   </div>
 
@@ -1177,6 +1247,9 @@ window.VocHelper = (function(){
     $("vocRequestsView").classList.toggle("hidden-view", view !== "vocRequests");
     $("vipRequestsView").classList.toggle("hidden-view", view !== "vipRequests");
     $("scheduleView").classList.toggle("hidden-view", view !== "schedule");
+    $("trainingSlotsView").classList.toggle("hidden-view", view !== "trainingSlots");
+    $("trainingTargetsView").classList.toggle("hidden-view", view !== "trainingTargets");
+    $("trainingBookingView").classList.toggle("hidden-view", view !== "trainingBooking");
     $("myInfoView").classList.toggle("hidden-view", view !== "myInfo");
     $("vipView").classList.toggle("hidden-view", view !== "vip");
     $("pineView").classList.toggle("hidden-view", view !== "pine");
@@ -1453,12 +1526,26 @@ window.VocHelper = (function(){
   function needsProfileInfo(user){
     return !user.realName || (user.department === "캐디" && !user.phoneLast4);
   }
+  function updateTrainingReminder(user){
+    var el = $("trainingReminder");
+    $("trainingBookingBtn").style.display = user && user.trainingRequired ? "" : "none";
+    if(!user || !user.trainingRequired){ el.style.display = "none"; return; }
+    var statusText = user.trainingCompleted ? "이수 완료 ✓" : (user.trainingSlotLabel ? "예약됨: " + user.trainingSlotLabel : "예약 필요");
+    el.style.display = "";
+    el.style.color = user.trainingCompleted ? "var(--ok, #2a8f4d)" : "var(--danger)";
+    el.textContent = "📚 대면교육 " + statusText + (user.trainingDeadline ? " · 기한 " + user.trainingDeadline : "");
+    renderTrainingBookingView();
+  }
+
   function enterCare(user){
     $("whoAmI").textContent = user.id + "님 (" + user.department + ")";
     $("careGreeting").textContent = "안녕하세요, " + (user.realName || user.id) + "님";
     $("vocRequestsBtn").style.display = user.role === "admin" ? "" : "none";
     $("vipRequestsBtn").style.display = user.role === "admin" ? "" : "none";
     $("scheduleUploadBtn").style.display = user.role === "admin" ? "" : "none";
+    $("trainingTargetsBtn").style.display = user.role === "admin" ? "" : "none";
+    $("trainingSlotsBtn").style.display = user.role === "admin" ? "" : "none";
+    updateTrainingReminder(user);
     showView("care");
     startCareBoard();
   }
@@ -2656,6 +2743,243 @@ window.VocHelper = (function(){
     else { window.addEventListener("vipdb-ready", attach, { once:true }); }
   }
   startVipDb();
+
+  /* ---------- 대면교육 예약 ---------- */
+  var trainingSlotCache = [];
+  var trainingAllUsersCache = [];
+  var trainingTargetCache = [];
+  var trainingUserMap = {};
+  var trainingSlotsUnsub = null;
+  var trainingAllUsersUnsub = null;
+  var trainingTargetsUnsub = null;
+  var trainingDeadlineEditUid = null;
+
+  function ensureTrainingSlotsLoaded(){
+    if(trainingSlotsUnsub) return;
+    function attach(){
+      trainingSlotsUnsub = window.TrainingDB.subscribeSlots(function(list){
+        trainingSlotCache = list;
+        renderTrainingSlotList();
+        renderTrainingBookingView();
+      });
+    }
+    if(window.TrainingDB){ attach(); }
+    else { window.addEventListener("trainingdb-ready", attach, { once:true }); }
+  }
+  function ensureTrainingUsersLoaded(){
+    if(trainingAllUsersUnsub) return;
+    function attach(){
+      trainingAllUsersUnsub = window.TrainingDB.subscribeAllUsers(function(list){
+        trainingAllUsersCache = list;
+        trainingUserMap = {};
+        list.forEach(function(u){ trainingUserMap[u.uid] = u; });
+        renderTrainingSlotList();
+        renderTrainingSearchResult();
+      });
+    }
+    if(window.TrainingDB){ attach(); }
+    else { window.addEventListener("trainingdb-ready", attach, { once:true }); }
+  }
+  function ensureTrainingTargetsLoaded(){
+    if(trainingTargetsUnsub) return;
+    function attach(){
+      trainingTargetsUnsub = window.TrainingDB.subscribeTargets(function(list){
+        trainingTargetCache = list;
+        renderTrainingTargetList();
+      });
+    }
+    if(window.TrainingDB){ attach(); }
+    else { window.addEventListener("trainingdb-ready", attach, { once:true }); }
+  }
+
+  function trainingUserLabel(uid){
+    var u = trainingUserMap[uid];
+    if(!u) return uid;
+    return (u.realName || u.id || uid) + (u.department ? " (" + u.department + ")" : "");
+  }
+
+  function renderTrainingSlotList(){
+    if(trainingSlotCache.length === 0){
+      $("trainingSlotList").innerHTML = '<p class="muted">등록된 시간대가 없습니다.</p>';
+      return;
+    }
+    $("trainingSlotList").innerHTML = trainingSlotCache.map(function(s){
+      var booked = s.bookedUids || [];
+      var full = booked.length >= s.capacity;
+      var names = booked.map(trainingUserLabel);
+      return '<div class="saved-item" data-sid="' + s.id + '">'
+        + '<div class="head"><strong>' + esc(s.date) + ' ' + esc(s.time) + '</strong>'
+        + '<span class="tag"' + (full ? ' style="background:var(--danger);color:#fff"' : '') + '>' + booked.length + '/' + s.capacity + '</span></div>'
+        + (names.length ? '<div class="peek">' + names.map(esc).join(", ") + '</div>' : '<div class="peek muted">예약자 없음</div>')
+        + '<div class="acts"><button data-act="delete" class="del">삭제</button></div>'
+        + '</div>';
+    }).join("");
+  }
+
+  $("trainingSlotsBtn").addEventListener("click", function(){
+    ensureTrainingSlotsLoaded();
+    ensureTrainingUsersLoaded();
+    $("trainingSlotDate").value = todayDateStr(1);
+  });
+
+  $("trainingSlotAddBtn").addEventListener("click", function(){
+    var date = $("trainingSlotDate").value;
+    var time = $("trainingSlotTime").value.trim();
+    var capacity = parseInt($("trainingSlotCapacity").value, 10);
+    $("trainingSlotMsg").textContent = "";
+    if(!date){ $("trainingSlotMsg").textContent = "날짜를 선택하세요."; return; }
+    if(!time){ $("trainingSlotMsg").textContent = "시간을 입력하세요."; return; }
+    if(!capacity || capacity < 1){ $("trainingSlotMsg").textContent = "정원을 1명 이상 입력하세요."; return; }
+    window.TrainingDB.addSlot(date, time, capacity).then(function(){
+      $("trainingSlotMsg").textContent = "시간대가 추가되었습니다 ✓";
+      $("trainingSlotTime").value = "";
+    }).catch(function(){ $("trainingSlotMsg").textContent = "추가 실패"; });
+  });
+
+  $("trainingSlotList").addEventListener("click", function(ev){
+    var btn = ev.target.closest('button[data-act="delete"]'); if(!btn) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    var sid = item.getAttribute("data-sid");
+    var slot = trainingSlotCache.filter(function(s){ return s.id === sid; })[0];
+    if(!slot) return;
+    var warn = (slot.bookedUids || []).length > 0 ? "예약된 직원이 있습니다. 그래도 " : "";
+    if(!confirm(warn + "이 시간대를 삭제하시겠습니까?")) return;
+    window.TrainingDB.deleteSlot(sid, slot.bookedUids || []).catch(function(){ flash("삭제 실패"); });
+  });
+
+  function renderTrainingSearchResult(){
+    var box = $("trainingSearchResult");
+    var q = $("trainingSearchInput").value.trim();
+    if(!q){ box.innerHTML = ""; return; }
+    var norm = normalizeVip(q);
+    var matches = trainingAllUsersCache.filter(function(u){
+      if(u.role === "admin") return false;
+      return normalizeVip(u.realName || "").indexOf(norm) > -1 || normalizeVip(u.phoneLast4 || "").indexOf(norm) > -1 || normalizeVip(u.id || "").indexOf(norm) > -1;
+    });
+    if(matches.length === 0){ box.innerHTML = '<p class="muted">일치하는 직원이 없습니다.</p>'; return; }
+    box.innerHTML = matches.map(function(u){
+      return '<div class="saved-item" data-uid="' + u.uid + '">'
+        + '<div class="head"><strong>' + esc(u.realName || u.id || "") + '</strong>' + (u.department ? '<span class="tag">' + esc(u.department) + '</span>' : '') + '</div>'
+        + '<div class="acts"><button data-act="designate" class="action" style="padding:6px 12px">' + (u.trainingRequired ? "기한 변경" : "교육 대상 지정") + '</button></div>'
+        + '</div>';
+    }).join("");
+  }
+  $("trainingSearchInput").addEventListener("input", renderTrainingSearchResult);
+
+  $("trainingSearchResult").addEventListener("click", function(ev){
+    var btn = ev.target.closest('button[data-act="designate"]'); if(!btn) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    var uid = item.getAttribute("data-uid");
+    var u = trainingAllUsersCache.filter(function(x){ return x.uid === uid; })[0];
+    if(!u) return;
+    trainingDeadlineEditUid = uid;
+    $("trainingDeadlineTargetName").textContent = (u.realName || u.id || "") + " 직원을 대면교육 대상으로 지정합니다.";
+    $("trainingDeadlineInput").value = u.trainingDeadline || todayDateStr(14);
+    $("trainingDeadlineMsg").textContent = "";
+    openPopup($("trainingDeadlinePopupOverlay"));
+  });
+  $("trainingDeadlineCancelBtn").addEventListener("click", function(){ closePopup($("trainingDeadlinePopupOverlay")); });
+  $("trainingDeadlineSaveBtn").addEventListener("click", function(){
+    var deadline = $("trainingDeadlineInput").value;
+    if(!deadline){ $("trainingDeadlineMsg").textContent = "이수 기한을 선택하세요."; return; }
+    window.TrainingDB.setTarget(trainingDeadlineEditUid, deadline).then(function(){
+      flash("교육 대상으로 지정되었습니다 ✓");
+      closePopup($("trainingDeadlinePopupOverlay"));
+    }).catch(function(){ $("trainingDeadlineMsg").textContent = "지정 실패"; });
+  });
+
+  function renderTrainingTargetList(){
+    $("trainingTargetCount").textContent = trainingTargetCache.length + "명";
+    if(trainingTargetCache.length === 0){
+      $("trainingTargetList").innerHTML = '<p class="muted">지정된 대상자가 없습니다.</p>';
+      return;
+    }
+    $("trainingTargetList").innerHTML = trainingTargetCache.map(function(u){
+      var statusText = u.trainingCompleted ? "이수 완료" : (u.trainingSlotLabel ? "예약됨: " + u.trainingSlotLabel : "미예약");
+      return '<div class="saved-item" data-uid="' + u.uid + '">'
+        + '<div class="head"><strong>' + esc(u.realName || u.id || "") + '</strong>' + (u.department ? '<span class="tag">' + esc(u.department) + '</span>' : '') + '</div>'
+        + '<div class="peek">' + esc(statusText) + ' · 기한 ' + esc(u.trainingDeadline || "-") + '</div>'
+        + '<div class="acts">'
+        + '<button data-act="' + (u.trainingCompleted ? "uncomplete" : "complete") + '" class="action" style="padding:6px 12px">' + (u.trainingCompleted ? "이수 취소" : "이수 완료 처리") + '</button>'
+        + '<button data-act="clear" class="del">대상 해제</button>'
+        + '</div></div>';
+    }).join("");
+  }
+
+  $("trainingTargetsBtn").addEventListener("click", function(){
+    ensureTrainingUsersLoaded();
+    ensureTrainingTargetsLoaded();
+  });
+
+  $("trainingTargetList").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button[data-act]"); if(!btn) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    var uid = item.getAttribute("data-uid");
+    var act = btn.getAttribute("data-act");
+    if(act === "complete"){
+      window.TrainingDB.markCompleted(uid).then(function(){ flash("이수 완료로 처리했습니다 ✓"); }).catch(function(){ flash("처리 실패"); });
+    } else if(act === "uncomplete"){
+      window.TrainingDB.unmarkCompleted(uid).catch(function(){ flash("처리 실패"); });
+    } else if(act === "clear"){
+      var u = trainingTargetCache.filter(function(x){ return x.uid === uid; })[0];
+      if(!confirm((u && (u.realName || u.id)) + " 직원을 교육 대상에서 해제하시겠습니까?")) return;
+      window.TrainingDB.clearTarget(uid, u ? u.trainingSlotId : null).catch(function(){ flash("해제 실패"); });
+    }
+  });
+
+  function renderTrainingBookingView(){
+    if($("trainingBookingView").classList.contains("hidden-view")) return;
+    if(!currentUser) return;
+    var mySlotId = currentUser.trainingSlotId || null;
+    $("trainingBookingStatus").textContent = currentUser.trainingCompleted
+      ? "이수 완료 ✓ (기한: " + (currentUser.trainingDeadline || "-") + ")"
+      : (mySlotId
+        ? "예약됨: " + (currentUser.trainingSlotLabel || "") + " · 기한: " + (currentUser.trainingDeadline || "-")
+        : "아직 예약하지 않았습니다 · 기한: " + (currentUser.trainingDeadline || "-"));
+    $("trainingBookingCancelBtn").style.display = (mySlotId && !currentUser.trainingCompleted) ? "" : "none";
+
+    var futureSlots = trainingSlotCache.filter(function(s){ return s.date >= todayDateStr(0); });
+    if(futureSlots.length === 0){
+      $("trainingSlotPicker").innerHTML = '<p class="muted">예약 가능한 시간대가 없습니다.</p>';
+      return;
+    }
+    $("trainingSlotPicker").innerHTML = futureSlots.map(function(s){
+      var booked = s.bookedUids || [];
+      var isMine = mySlotId === s.id;
+      var full = booked.length >= s.capacity && !isMine;
+      return '<div class="saved-item" data-sid="' + s.id + '"' + (full ? ' style="opacity:.5"' : '') + '>'
+        + '<div class="head"><strong>' + esc(s.date) + ' ' + esc(s.time) + '</strong>'
+        + '<span class="tag"' + (full ? ' style="background:var(--danger);color:#fff"' : '') + '>' + booked.length + '/' + s.capacity + '</span>'
+        + (isMine ? '<span class="tag" style="background:var(--ok,#2a8f4d);color:#fff">내 예약</span>' : '') + '</div>'
+        + '<div class="acts"><button data-act="book" class="action" style="padding:6px 12px"' + (full || currentUser.trainingCompleted ? ' disabled' : '') + '>' + (isMine ? "다시 예약" : "이 시간대 예약") + '</button></div>'
+        + '</div>';
+    }).join("");
+  }
+
+  $("trainingBookingBtn").addEventListener("click", function(){
+    ensureTrainingSlotsLoaded();
+    renderTrainingBookingView();
+  });
+
+  $("trainingSlotPicker").addEventListener("click", function(ev){
+    var btn = ev.target.closest('button[data-act="book"]'); if(!btn || btn.disabled) return;
+    var item = ev.target.closest(".saved-item"); if(!item) return;
+    var sid = item.getAttribute("data-sid");
+    var slot = trainingSlotCache.filter(function(s){ return s.id === sid; })[0];
+    if(!slot) return;
+    var label = slot.date + " " + slot.time;
+    $("trainingBookingMsg").textContent = "예약 중…";
+    window.TrainingDB.book(currentUser.uid, sid, label, currentUser.trainingSlotId || null).then(function(){
+      $("trainingBookingMsg").textContent = "예약되었습니다 ✓";
+    }).catch(function(){ $("trainingBookingMsg").textContent = "예약 실패. 다시 시도하세요."; });
+  });
+
+  $("trainingBookingCancelBtn").addEventListener("click", function(){
+    if(!confirm("예약을 취소하시겠습니까?")) return;
+    window.TrainingDB.cancelBooking(currentUser.uid, currentUser.trainingSlotId || null).then(function(){
+      $("trainingBookingMsg").textContent = "예약이 취소되었습니다.";
+    }).catch(function(){ flash("취소 실패"); });
+  });
 })();
 </script>
 <script type="module">
@@ -2701,6 +3025,7 @@ window.VocHelper = (function(){
   var careBoardCol = collection(db, "careBoard");
   var schedulesCol = collection(db, "schedules");
   var vipMembersCol = collection(db, "vipMembers");
+  var trainingSlotsCol = collection(db, "trainingSlots");
 
   function idToEmail(id){ return id.trim().toLowerCase() + "@vochelper.local"; }
 
@@ -2772,7 +3097,12 @@ window.VocHelper = (function(){
             vocAccess: profile.vocAccess || "none",
             vipAccess: profile.vipAccess || "none",
             realName: profile.realName || "",
-            phoneLast4: profile.phoneLast4 || ""
+            phoneLast4: profile.phoneLast4 || "",
+            trainingRequired: !!profile.trainingRequired,
+            trainingDeadline: profile.trainingDeadline || "",
+            trainingSlotId: profile.trainingSlotId || null,
+            trainingSlotLabel: profile.trainingSlotLabel || "",
+            trainingCompleted: !!profile.trainingCompleted
           });
         });
       });
@@ -2961,6 +3291,85 @@ window.VocHelper = (function(){
     remove: function(id){ return deleteDoc(doc(vipMembersCol, id)); }
   };
   window.dispatchEvent(new Event("vipdb-ready"));
+
+  window.TrainingDB = {
+    subscribeSlots: function(onChange){
+      var q = query(trainingSlotsCol, orderBy("date"), orderBy("time"));
+      return onSnapshot(q, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          data.id = d.id;
+          list.push(data);
+        });
+        onChange(list);
+      }, function(err){ console.error("Firestore subscribe error", err); });
+    },
+    addSlot: function(date, time, capacity){
+      var ref = doc(trainingSlotsCol);
+      return setDoc(ref, { date: date, time: time, capacity: capacity, bookedUids: [], createdAt: Date.now() });
+    },
+    deleteSlot: function(slotId, bookedUids){
+      var tasks = (bookedUids || []).map(function(uid){
+        return setDoc(doc(usersCol, uid), { trainingSlotId: null, trainingSlotLabel: "" }, { merge: true });
+      });
+      return Promise.all(tasks).then(function(){ return deleteDoc(doc(trainingSlotsCol, slotId)); });
+    },
+    book: function(uid, slotId, slotLabel, oldSlotId){
+      var tasks = [];
+      if(oldSlotId && oldSlotId !== slotId){
+        tasks.push(updateDoc(doc(trainingSlotsCol, oldSlotId), { bookedUids: arrayRemove(uid) }).catch(function(){}));
+      }
+      tasks.push(updateDoc(doc(trainingSlotsCol, slotId), { bookedUids: arrayUnion(uid) }));
+      tasks.push(setDoc(doc(usersCol, uid), { trainingSlotId: slotId, trainingSlotLabel: slotLabel, trainingCompleted: false }, { merge: true }));
+      return Promise.all(tasks);
+    },
+    cancelBooking: function(uid, slotId){
+      var tasks = [setDoc(doc(usersCol, uid), { trainingSlotId: null, trainingSlotLabel: "" }, { merge: true })];
+      if(slotId){ tasks.push(updateDoc(doc(trainingSlotsCol, slotId), { bookedUids: arrayRemove(uid) }).catch(function(){})); }
+      return Promise.all(tasks);
+    },
+    setTarget: function(uid, deadline){
+      return setDoc(doc(usersCol, uid), { trainingRequired: true, trainingDeadline: deadline }, { merge: true });
+    },
+    clearTarget: function(uid, slotId){
+      var tasks = [setDoc(doc(usersCol, uid), {
+        trainingRequired: false, trainingDeadline: "", trainingSlotId: null, trainingSlotLabel: "", trainingCompleted: false
+      }, { merge: true })];
+      if(slotId){ tasks.push(updateDoc(doc(trainingSlotsCol, slotId), { bookedUids: arrayRemove(uid) }).catch(function(){})); }
+      return Promise.all(tasks);
+    },
+    markCompleted: function(uid){
+      return setDoc(doc(usersCol, uid), { trainingCompleted: true, trainingCompletedAt: Date.now() }, { merge: true });
+    },
+    unmarkCompleted: function(uid){
+      return setDoc(doc(usersCol, uid), { trainingCompleted: false, trainingCompletedAt: null }, { merge: true });
+    },
+    subscribeTargets: function(onChange){
+      var q = query(usersCol, where("trainingRequired", "==", true));
+      return onSnapshot(q, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          data.uid = d.id;
+          list.push(data);
+        });
+        onChange(list);
+      }, function(err){ console.error("Firestore subscribe error", err); });
+    },
+    subscribeAllUsers: function(onChange){
+      return onSnapshot(usersCol, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          data.uid = d.id;
+          list.push(data);
+        });
+        onChange(list);
+      }, function(err){ console.error("Firestore subscribe error", err); });
+    }
+  };
+  window.dispatchEvent(new Event("trainingdb-ready"));
 </script>
 <script>
   if("serviceWorker" in navigator){
