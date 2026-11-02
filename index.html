@@ -2945,6 +2945,13 @@ window.VocHelper = (function(){
     });
   }
 
+  // 관리자가 실제 배정이 없어도 화면을 미리 볼 수 있도록 보여주는 샘플 1건 (실제 배정/잠금 로직에는 영향 없음)
+  var PUREUMI_SAMPLE_TEAM = {
+    teeTime: "07:30", course: "밸리", caddieName: "(샘플)", caddiePhone: "",
+    customerName: "홍길동", customerNames: ["홍길동", "김철수", "이영희", "박민수"], isSample: true
+  };
+  var pureumiRenderedTeams = [];
+
   function pureumiRowNames(row){
     return (row.customerNames && row.customerNames.length ? row.customerNames : [row.customerName]).filter(Boolean);
   }
@@ -2976,15 +2983,22 @@ window.VocHelper = (function(){
     if(!currentUser || !(currentUser.department === "캐디" || currentUser.role === "admin")) return;
     $("pureumiWho").textContent = "담당 캐디: " + (currentUser.realName || currentUser.id) + (currentUser.phoneLast4 ? " (" + currentUser.phoneLast4 + ")" : "");
     var teams = myPureumiTeams();
+    var usingSample = false;
+    if(teams.length === 0 && currentUser.role === "admin"){
+      teams = [PUREUMI_SAMPLE_TEAM];
+      usingSample = true;
+    }
+    pureumiRenderedTeams = teams;
     if(teams.length === 0){
       $("pureumiTeamList").innerHTML = '<p class="muted">오늘 배정된 팀이 없습니다.</p>';
       return;
     }
-    $("pureumiTeamList").innerHTML = teams.map(function(r, i){
+    var noticeHtml = usingSample ? '<p class="muted" style="margin:0 0 8px">⚠️ 실제 배정이 없어 샘플 데이터로 화면을 보여드립니다. 저장은 되지 않습니다.</p>' : '';
+    $("pureumiTeamList").innerHTML = noticeHtml + teams.map(function(r, i){
       var done = isPureumiSubmitted(r);
       var names = pureumiRowNames(r).join(", ");
       return '<div class="pureumi-team-card" data-idx="' + i + '">'
-        + '<div class="ptc-top"><span class="ptc-time">' + esc(r.teeTime) + ' · ' + esc(r.course) + '</span>'
+        + '<div class="ptc-top"><span class="ptc-time">' + esc(r.teeTime) + ' · ' + esc(r.course) + (r.isSample ? ' (샘플)' : '') + '</span>'
         + '<span class="pureumi-status ' + (done ? "done" : "pending") + '">' + (done ? "제출완료 ✓" : "평가 필요") + '</span></div>'
         + '<p class="ptc-names">예약자: ' + esc(names || "-") + '</p>'
         + '</div>';
@@ -3061,14 +3075,26 @@ window.VocHelper = (function(){
     pureumiTeamTagSet = {};
     pureumiIndivData = names.map(function(n){ return { name: n, tags: {}, note: "" }; });
 
-    $("pureumiFormTitle").textContent = (row.teeTime || "") + " · " + (row.course || "");
-    $("pureumiFormSub").textContent = "담당 캐디: " + (currentUser.realName || currentUser.id);
+    $("pureumiFormTitle").textContent = (row.teeTime || "") + " · " + (row.course || "") + (row.isSample ? " (샘플)" : "");
+    $("pureumiFormSub").textContent = row.isSample
+      ? "⚠️ 샘플 미리보기 — 이 화면에서 제출해도 실제로 저장되지 않습니다."
+      : "담당 캐디: " + (currentUser.realName || currentUser.id);
+    $("pureumiSubmitBtn").textContent = row.isSample ? "📡 그린잇(GREENIT) ERP로 VOE 전송 및 자동 저장 (샘플이라 비활성)" : "📡 그린잇(GREENIT) ERP로 VOE 전송 및 자동 저장";
+    $("pureumiSubmitBtn").disabled = !!row.isSample;
 
     renderPureumiCustomerTable(names);
     $("pureumiTeamTags").innerHTML = tagButtonsHtml();
     $("pureumiTeamMemo").value = "";
     updatePureumiTeamScore();
     renderPureumiIndivPane();
+
+    if(row.isSample){
+      showPureumiTab("team");
+      $("pureumiListCard").classList.add("hidden-view");
+      $("pureumiFormCard").classList.remove("hidden-view");
+      $("pureumiSubmitMsg").textContent = "";
+      return;
+    }
 
     var key = pureumiEvalKey(todayDateStr(0), currentUser.uid, row);
     var existing = pureumiEvalCache.filter(function(e){ return e.id === key; })[0];
@@ -3098,7 +3124,7 @@ window.VocHelper = (function(){
   $("pureumiTeamList").addEventListener("click", function(ev){
     var card = ev.target.closest(".pureumi-team-card"); if(!card) return;
     var idx = Number(card.getAttribute("data-idx"));
-    var team = myPureumiTeams()[idx];
+    var team = pureumiRenderedTeams[idx];
     if(team) openPureumiForm(team);
   });
 
