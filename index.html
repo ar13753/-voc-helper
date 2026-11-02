@@ -707,6 +707,17 @@
         </div>
       </section>
     </div>
+
+    <div id="pureumiTomorrowCard" class="hidden-view">
+      <section class="card">
+        <h2>🏌️ 내일 배정 미리보기</h2>
+        <p class="muted" style="margin:0 0 10px">오늘 평가를 모두 제출하셨습니다. 내일 만나실 고객 정보를 미리 확인하세요.</p>
+        <div id="pureumiTomorrowBody"></div>
+        <div class="row">
+          <button class="ghost" id="pureumiTomorrowBackBtn" style="width:100%">← 오늘 목록으로</button>
+        </div>
+      </section>
+    </div>
   </div>
 
   <!-- 관리자: 대면교육 시간대 관리 -->
@@ -2950,7 +2961,20 @@ window.VocHelper = (function(){
     teeTime: "07:30", course: "밸리", caddieName: "(샘플)", caddiePhone: "",
     customerName: "홍길동", customerNames: ["홍길동", "김철수", "이영희", "박민수"], isSample: true
   };
+  var PUREUMI_SAMPLE_TOMORROW_TEAM = {
+    teeTime: "08:10", course: "레이크", caddieName: "(샘플)", caddiePhone: "",
+    customerName: "홍길동", customerNames: ["홍길동", "김철수", "이영희", "박민수"], isSample: true,
+    notes: { "홍길동": "상세한 전략 설명 원하심" }
+  };
   var pureumiRenderedTeams = [];
+
+  function myPureumiTomorrowTeams(){
+    if(!currentUser || !scheduleForTomorrow || !scheduleForTomorrow.rows) return [];
+    return scheduleForTomorrow.rows.filter(function(r){
+      return r.caddieName === (currentUser.realName || "").trim()
+        && (!r.caddiePhone || r.caddiePhone === currentUser.phoneLast4);
+    });
+  }
 
   function pureumiRowNames(row){
     return (row.customerNames && row.customerNames.length ? row.customerNames : [row.customerName]).filter(Boolean);
@@ -3005,25 +3029,48 @@ window.VocHelper = (function(){
     }).join("");
   }
 
-  function renderPureumiCustomerTable(names){
-    if(names.length === 0){
-      $("pureumiCustomerTable").innerHTML = '<p class="muted">등록된 동반자 정보가 없습니다.</p>';
-      return;
-    }
-    $("pureumiCustomerTable").innerHTML = names.map(function(name, i){
+  function customerCardsHtml(names, noteOverrides){
+    if(names.length === 0) return '<p class="muted">등록된 동반자 정보가 없습니다.</p>';
+    return names.map(function(name, i){
       var vip = vipCache.filter(function(v){ return normalizeVip(v.name) === normalizeVip(name); })[0];
       var chips = [];
       if(vip){
         if(vip.category) chips.push('<span class="tag">' + esc(vip.category) + '</span>');
         (vip.tags || "").split(/\s+/).filter(Boolean).forEach(function(t){ chips.push('<span class="tag">' + esc(t) + '</span>'); });
       }
+      var note = (vip && vip.note) || (noteOverrides && noteOverrides[name]) || "";
       return '<div class="customer-card">'
         + '<div class="cc-top"><span class="cc-num">' + (i + 1) + '</span><span class="cc-name">' + esc(name) + '</span>'
         + (vip ? '<span class="tag">⭐ VIP</span>' : '<span class="tag">일반</span>') + '</div>'
         + (chips.length ? '<div class="cc-tags">' + chips.join("") + '</div>' : '')
-        + (vip && vip.note ? '<p class="cc-memo">비고: ' + esc(vip.note) + '</p>' : '')
+        + (note ? '<p class="cc-memo">이전 캐디 메모: ' + esc(note) + '</p>' : '')
         + '</div>';
     }).join("");
+  }
+
+  function renderPureumiCustomerTable(names){
+    $("pureumiCustomerTable").innerHTML = customerCardsHtml(names);
+  }
+
+  function renderPureumiTomorrowPreview(){
+    var teams = myPureumiTomorrowTeams();
+    var usingSample = false;
+    if(teams.length === 0 && currentUser.role === "admin"){
+      teams = [PUREUMI_SAMPLE_TOMORROW_TEAM];
+      usingSample = true;
+    }
+    if(teams.length === 0){
+      $("pureumiTomorrowBody").innerHTML = '<p class="muted">아직 내일 배정 스케줄이 없습니다.</p>';
+      return;
+    }
+    var notice = usingSample ? '<p class="muted" style="margin:0 0 8px">⚠️ 실제 배정이 없어 샘플로 보여드립니다.</p>' : '';
+    $("pureumiTomorrowBody").innerHTML = notice + teams.map(function(r){
+      var names = pureumiRowNames(r);
+      return '<div class="pureumi-team-card" style="cursor:default; margin-bottom:6px">'
+        + '<div class="ptc-top"><span class="ptc-time">' + esc(r.teeTime) + ' · ' + esc(r.course) + (r.isSample ? " (샘플)" : "") + '</span></div>'
+        + '</div>'
+        + customerCardsHtml(names, r.notes);
+    }).join('<div style="height:14px"></div>');
   }
 
   function updatePureumiTeamScore(){
@@ -3079,8 +3126,8 @@ window.VocHelper = (function(){
     $("pureumiFormSub").textContent = row.isSample
       ? "⚠️ 샘플 미리보기 — 이 화면에서 제출해도 실제로 저장되지 않습니다."
       : "담당 캐디: " + (currentUser.realName || currentUser.id);
-    $("pureumiSubmitBtn").textContent = row.isSample ? "확인 (샘플이라 비활성)" : "확인";
-    $("pureumiSubmitBtn").disabled = !!row.isSample;
+    $("pureumiSubmitBtn").textContent = "확인";
+    $("pureumiSubmitBtn").disabled = false;
 
     renderPureumiCustomerTable(names);
     $("pureumiTeamTags").innerHTML = tagButtonsHtml();
@@ -3130,6 +3177,13 @@ window.VocHelper = (function(){
 
   $("pureumiBackToListBtn").addEventListener("click", function(){
     $("pureumiFormCard").classList.add("hidden-view");
+    $("pureumiListCard").classList.remove("hidden-view");
+    renderPureumiList();
+  });
+
+  $("tabPureumiBtn").addEventListener("click", function(){
+    $("pureumiFormCard").classList.add("hidden-view");
+    $("pureumiTomorrowCard").classList.add("hidden-view");
     $("pureumiListCard").classList.remove("hidden-view");
     renderPureumiList();
   });
@@ -3202,8 +3256,22 @@ window.VocHelper = (function(){
     }
   });
 
+  function pureumiGoToTomorrowPreview(){
+    $("pureumiFormCard").classList.add("hidden-view");
+    $("pureumiListCard").classList.add("hidden-view");
+    renderPureumiTomorrowPreview();
+    $("pureumiTomorrowCard").classList.remove("hidden-view");
+  }
+
   $("pureumiSubmitBtn").addEventListener("click", function(){
     if(!pureumiCurrentRow || !currentUser) return;
+
+    if(pureumiCurrentRow.isSample){
+      flash("샘플 미리보기 (저장되지 않음)");
+      pureumiGoToTomorrowPreview();
+      return;
+    }
+
     var teamTagIds = Object.keys(pureumiTeamTagSet);
     var memo = $("pureumiTeamMemo").value.trim();
     if(teamTagIds.length === 0 && !memo){
@@ -3225,16 +3293,32 @@ window.VocHelper = (function(){
       }),
       submittedAt: Date.now()
     };
+    var submittedRow = pureumiCurrentRow;
     $("pureumiSubmitBtn").disabled = true;
     window.PureumiDB.save(key, data).then(function(){
-      flash("저장 완료 ✓ 내일 배정 조회가 잠금 해제됩니다");
-      $("pureumiFormCard").classList.add("hidden-view");
-      $("pureumiListCard").classList.remove("hidden-view");
+      var remaining = myPureumiTeams().filter(function(r){
+        return r !== submittedRow && !isPureumiSubmitted(r);
+      }).length;
+      if(remaining === 0){
+        flash("저장 완료 ✓ 오늘 평가를 모두 제출하셨습니다");
+        pureumiGoToTomorrowPreview();
+      } else {
+        flash("저장 완료 ✓");
+        $("pureumiFormCard").classList.add("hidden-view");
+        $("pureumiListCard").classList.remove("hidden-view");
+        renderPureumiList();
+      }
     }).catch(function(){
       $("pureumiSubmitMsg").textContent = "저장 실패. 다시 시도하세요.";
     }).finally(function(){
       $("pureumiSubmitBtn").disabled = false;
     });
+  });
+
+  $("pureumiTomorrowBackBtn").addEventListener("click", function(){
+    $("pureumiTomorrowCard").classList.add("hidden-view");
+    $("pureumiListCard").classList.remove("hidden-view");
+    renderPureumiList();
   });
 
   function startPureumi(){
