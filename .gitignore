@@ -1,0 +1,4 @@
+# Android TWA build projects contain signing keystores and plaintext
+# keystore passwords (keystore-password.txt) — never commit these.
+sol-mate-twa/
+sol-mate-twa-v2/
