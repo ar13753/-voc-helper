@@ -44,6 +44,12 @@
     --badge-vip-bg:#F5ECDC; --badge-vip-ink:#8C6A2E;
     --badge-course-bg:#E3F0E9; --badge-course-ink:#236E4F;
     --badge-share-bg:#E5EEF7; --badge-share-ink:#2B5F8A;
+    --tag-green-bg:#E3F0E9; --tag-green-ink:#236E4F;
+    --tag-blue-bg:#E5EEF7; --tag-blue-ink:#2B5F8A;
+    --tag-slate-bg:#EAECEE; --tag-slate-ink:#5B6470;
+    --tag-amber-bg:#F5ECDC; --tag-amber-ink:#8C6A2E;
+    --tag-orange-bg:#FBEADF; --tag-orange-ink:#B5571F;
+    --tag-red-bg:#FBE7E7; --tag-red-ink:#B23A3C;
   }
   @media (prefers-color-scheme: dark){
     :root{
@@ -55,6 +61,12 @@
       --badge-vip-bg:#3A331F; --badge-vip-ink:#E8CE94;
       --badge-course-bg:#1C3327; --badge-course-ink:#8FE0B8;
       --badge-share-bg:#1E2C3A; --badge-share-ink:#9CC6EA;
+      --tag-green-bg:#1C3327; --tag-green-ink:#8FE0B8;
+      --tag-blue-bg:#1E2C3A; --tag-blue-ink:#9CC6EA;
+      --tag-slate-bg:#232A30; --tag-slate-ink:#AAB4BD;
+      --tag-amber-bg:#3A331F; --tag-amber-ink:#E8CE94;
+      --tag-orange-bg:#3A2A1B; --tag-orange-ink:#F0B58A;
+      --tag-red-bg:#3A2020; --tag-red-ink:#F0A2A3;
     }
   }
   *{box-sizing:border-box}
@@ -248,6 +260,60 @@
     display:flex; align-items:center; gap:8px; box-shadow:0 10px 20px rgba(0,0,0,0.25); cursor:pointer;
   }
   .fab .fab-plus{ font-size:18px; line-height:1 }
+
+  /* ---- 푸르미평가 ---- */
+  .pureumi-header{ margin-bottom:12px }
+  .pureumi-header .who{ font-size:13px; color:var(--muted); margin:0 0 2px }
+  .pureumi-header .dom{ font-size:11px; color:var(--muted); margin:0 0 10px }
+  .pureumi-team-card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:14px; margin-bottom:10px; cursor:pointer;
+  }
+  .pureumi-team-card .ptc-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px }
+  .pureumi-team-card .ptc-time{ font-weight:800; font-size:14px }
+  .pureumi-team-card .ptc-names{ font-size:12.5px; color:var(--muted) }
+  .pureumi-status{ font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px; flex-shrink:0 }
+  .pureumi-status.done{ background:var(--badge-course-bg); color:var(--badge-course-ink) }
+  .pureumi-status.pending{ background:var(--badge-urgent-bg); color:var(--badge-urgent-ink) }
+  .customer-card{
+    background:var(--soft); border:1px solid var(--line); border-radius:12px;
+    padding:12px; margin-bottom:10px;
+  }
+  .customer-card .cc-top{ display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap }
+  .customer-card .cc-num{
+    display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px;
+    border-radius:50%; background:var(--brand); color:var(--brand-ink); font-size:11px; font-weight:800; flex-shrink:0;
+  }
+  .customer-card .cc-name{ font-weight:800; font-size:14.5px }
+  .customer-card .cc-tags{ margin-top:4px }
+  .customer-card .cc-memo{ font-size:12.5px; color:var(--muted); margin:6px 0 0 }
+  .eval-tags{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 }
+  .eval-tag{
+    padding:9px 13px; border-radius:999px; border:1px solid var(--line);
+    background:var(--chip); color:var(--ink); font:inherit; font-size:12.5px; font-weight:700;
+    cursor:pointer; transition:.15s;
+  }
+  .eval-tag[data-kind="green"][aria-pressed="true"]{ background:var(--tag-green-bg); color:var(--tag-green-ink); border-color:var(--tag-green-ink) }
+  .eval-tag[data-kind="blue"][aria-pressed="true"]{ background:var(--tag-blue-bg); color:var(--tag-blue-ink); border-color:var(--tag-blue-ink) }
+  .eval-tag[data-kind="slate"][aria-pressed="true"]{ background:var(--tag-slate-bg); color:var(--tag-slate-ink); border-color:var(--tag-slate-ink) }
+  .eval-tag[data-kind="amber"][aria-pressed="true"]{ background:var(--tag-amber-bg); color:var(--tag-amber-ink); border-color:var(--tag-amber-ink) }
+  .eval-tag[data-kind="orange"][aria-pressed="true"]{ background:var(--tag-orange-bg); color:var(--tag-orange-ink); border-color:var(--tag-orange-ink) }
+  .eval-tag[data-kind="red"][aria-pressed="true"]{ background:var(--tag-red-bg); color:var(--tag-red-ink); border-color:var(--tag-red-ink) }
+  .eval-score{ font-size:13px; font-weight:800; margin:2px 0 10px }
+  .eval-score.pos{ color:var(--ok) }
+  .eval-score.neg{ color:var(--danger) }
+  .eval-score.zero{ color:var(--muted) }
+  .mic-row{ display:flex; align-items:center; gap:8px; margin-top:10px }
+  .mic-btn{
+    width:40px; height:40px; border-radius:50%; border:1px solid var(--line); background:var(--chip);
+    color:var(--ink); font-size:17px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  }
+  .mic-btn.listening{ background:var(--danger); color:#fff; border-color:var(--danger); animation:mic-pulse 1.1s infinite }
+  @keyframes mic-pulse{ 0%{ box-shadow:0 0 0 0 rgba(217,56,58,.45) } 70%{ box-shadow:0 0 0 10px rgba(217,56,58,0) } 100%{ box-shadow:0 0 0 0 rgba(217,56,58,0) } }
+  .pureumi-submit-bar{
+    position:sticky; bottom:72px; background:var(--card); border:1px solid var(--line);
+    border-radius:14px; padding:12px; margin-top:14px; box-shadow:0 6px 16px rgba(0,0,0,.08);
+  }
 </style>
 </head>
 <body>
@@ -441,6 +507,7 @@
     <button class="tab-btn" id="tabVocBtn"><span class="tab-icon">💬</span><span>VOC 도우미</span></button>
     <button class="tab-btn" id="tabVipBtn"><span class="tab-icon">⭐</span><span>VIP</span></button>
     <button class="tab-btn" data-tab="pine"><span class="tab-icon">🌲</span><span>소나무숲</span></button>
+    <button class="tab-btn" id="tabPureumiBtn" data-tab="pureumi" style="display:none"><span class="tab-icon">📝</span><span>푸르미평가</span></button>
     <button class="tab-btn" data-tab="home"><span class="tab-icon">👤</span><span>마이페이지</span></button>
   </nav>
 
@@ -538,6 +605,15 @@
       </div>
       <label style="margin-top:10px">비고</label>
       <input type="text" id="vipNote" placeholder="예: 26년 VIP">
+      <label style="margin-top:10px">대분류 (기여도 · 선택, 푸르미평가 화면에 표시)</label>
+      <div class="tones" id="vipCategoryGroup" role="group" aria-label="대분류">
+        <button class="tone" data-category="" aria-pressed="true">없음</button>
+        <button class="tone" data-category="수익기여" aria-pressed="false">수익기여</button>
+        <button class="tone" data-category="운영기여" aria-pressed="false">운영기여</button>
+        <button class="tone" data-category="네트워크기여" aria-pressed="false">네트워크기여</button>
+      </div>
+      <label style="margin-top:10px">특징 태그 (선택 · 공백으로 구분, 푸르미평가 화면에 표시)</label>
+      <input type="text" id="vipTags" placeholder="예: #객단가우수 #Booker #장기고객">
       <label style="margin-top:10px">사진 (선택)</label>
       <div class="row" style="align-items:center; gap:10px">
         <div class="vip-avatar vip-avatar-lg" id="vipPhotoPreview">?</div>
@@ -573,14 +649,64 @@
     <label>적용 날짜 (익일 기준으로 입력)</label>
     <input type="date" id="scheduleDate">
     <label style="margin-top:10px">팀 목록 (한 줄에 한 팀)</label>
-    <p class="muted" style="margin:2px 0 6px">형식: 티오프시간,코스,캐디이름,예약자명 · 동명이인이 있으면 캐디이름 뒤에 (전화뒷4자리)를 붙이세요.<br>예) 07:42,마운틴,김솔이,홍길동 / 08:10,밸리,박정희(5678),이영수</p>
-    <textarea id="scheduleRaw" style="min-height:220px" placeholder="07:42,마운틴,김솔이,홍길동
+    <p class="muted" style="margin:2px 0 6px">형식: 티오프시간,코스,캐디이름,동반자1/동반자2/동반자3/동반자4 (최대 4명, 적은 인원은 그만큼만) · 동명이인 캐디는 이름 뒤에 (전화뒷4자리)를 붙이세요.</p>
+    <textarea id="scheduleRaw" style="min-height:220px" placeholder="07:42,마운틴,김솔이,홍길동/김철수/이영희/박민수
 08:10,밸리,박정희(5678),이영수"></textarea>
     <div class="row">
       <button class="action" id="scheduleSaveBtn">업로드</button>
     </div>
     <p id="scheduleMsg" class="muted" style="min-height:1.2em"></p>
   </section>
+  </div>
+
+  <!-- 푸르미평가 (캐디 전용) -->
+  <div id="pureumiView" class="hidden-view">
+    <div class="pureumi-header">
+      <p class="who" id="pureumiWho"></p>
+      <p class="dom">purunsol.co.kr | 푸른솔GC 포천 캐디 모바일</p>
+    </div>
+
+    <div id="pureumiListCard">
+      <section class="card">
+        <h2>📝 오늘의 라운드 평가</h2>
+        <p class="muted" style="margin:0 0 10px">라운드 종료 후 팀별로 평가를 제출해주세요. 오늘 배정된 팀을 모두 제출해야 내일 배정이 보입니다.</p>
+        <div id="pureumiTeamList"><p class="muted">불러오는 중…</p></div>
+      </section>
+    </div>
+
+    <div id="pureumiFormCard" class="hidden-view">
+      <button class="ghost back-btn" id="pureumiBackToListBtn">← 목록으로</button>
+      <section class="card">
+        <h2 id="pureumiFormTitle">팀 평가</h2>
+        <p class="muted" id="pureumiFormSub" style="margin:0 0 10px"></p>
+
+        <div id="pureumiCustomerTable"></div>
+
+        <div class="tones" id="pureumiTabs" role="group" aria-label="평가 화면 전환" style="margin-top:14px">
+          <button class="tone" id="pureumiTabTeam" aria-pressed="true">👥 팀 전체 평가</button>
+          <button class="tone" id="pureumiTabIndiv" aria-pressed="false">🙋 동반자 개별 평가</button>
+        </div>
+
+        <div id="pureumiTeamPane">
+          <h3 style="margin:14px 0 4px">대표 태그 선택 (선택안함 가능)</h3>
+          <div class="eval-tags" id="pureumiTeamTags"></div>
+          <p class="eval-score zero" id="pureumiTeamScore">선택안함 · 0점</p>
+          <label>캐디 정성 메모</label>
+          <textarea id="pureumiTeamMemo" style="min-height:110px" placeholder="예) 체크인 시 캐디 피드백 매우 호의적이셨으며 그린 보수 직접 진행하심. 그늘집 서빙 지연에 대해 소소한 의견 있으셨으나 현장 조치 완료함."></textarea>
+          <div class="mic-row">
+            <button class="mic-btn" id="pureumiMicBtn" title="음성으로 입력">🎤</button>
+            <span class="muted" id="pureumiMicStatus" style="font-size:12px"></span>
+          </div>
+        </div>
+
+        <div id="pureumiIndivPane" class="hidden-view"></div>
+
+        <div class="pureumi-submit-bar">
+          <button class="action" id="pureumiSubmitBtn" style="width:100%">📡 그린잇(GREENIT) ERP로 VOE 전송 및 자동 저장</button>
+          <p id="pureumiSubmitMsg" class="muted" style="min-height:1.2em; margin:6px 0 0; text-align:center"></p>
+        </div>
+      </section>
+    </div>
   </div>
 
   <!-- 관리자: 대면교육 시간대 관리 -->
@@ -1247,7 +1373,7 @@ window.VocHelper = (function(){
   });
 
   /* ---------- 홈 메뉴 / 화면 전환 ---------- */
-  var TAB_VIEWS = { care:"care", voc:"voc", vip:"vip", pine:"pine", home:"home" };
+  var TAB_VIEWS = { care:"care", voc:"voc", vip:"vip", pine:"pine", pureumi:"pureumi", home:"home" };
   function showView(view){
     $("authView").classList.toggle("hidden-view", view !== "auth");
     $("deptPickView").classList.toggle("hidden-view", view !== "deptpick");
@@ -1267,6 +1393,7 @@ window.VocHelper = (function(){
     $("pineView").classList.toggle("hidden-view", view !== "pine");
     $("pineAnonView").classList.toggle("hidden-view", view !== "pineAnon");
     $("pineSharedView").classList.toggle("hidden-view", view !== "pineShared");
+    $("pureumiView").classList.toggle("hidden-view", view !== "pureumi");
 
     var showTabbar = !!TAB_VIEWS[view];
     $("mainTabbar").classList.toggle("hidden-view", !showTabbar);
@@ -1564,9 +1691,11 @@ window.VocHelper = (function(){
     $("scheduleUploadBtn").style.display = user.role === "admin" ? "" : "none";
     $("trainingTargetsBtn").style.display = user.role === "admin" ? "" : "none";
     $("trainingSlotsBtn").style.display = user.role === "admin" ? "" : "none";
+    $("tabPureumiBtn").style.display = user.department === "캐디" ? "" : "none";
     updateTrainingReminder(user);
     showView("care");
     startCareBoard();
+    startPureumi();
   }
 
   $("profileSubmitBtn").addEventListener("click", function(){
@@ -2255,12 +2384,14 @@ window.VocHelper = (function(){
     return raw.split("\n").map(function(line){ return line.trim(); }).filter(Boolean).map(function(line){
       var parts = line.split(",").map(function(s){ return s.trim(); });
       var caddie = parseCaddieField(parts[2] || "");
+      var customerNames = (parts[3] || "").split("/").map(function(s){ return s.trim(); }).filter(Boolean).slice(0, 4);
       return {
         teeTime: parts[0] || "",
         course: parts[1] || "",
         caddieName: caddie.name,
         caddiePhone: caddie.phone,
-        customerName: parts[3] || ""
+        customerName: customerNames[0] || "",
+        customerNames: customerNames
       };
     }).filter(function(r){ return r.teeTime || r.caddieName; });
   }
@@ -2291,20 +2422,24 @@ window.VocHelper = (function(){
     var parts = [];
 
     if(currentUser && currentUser.department === "캐디"){
-      var rows = [];
-      if(scheduleForTomorrow && scheduleForTomorrow.rows){
-        rows = scheduleForTomorrow.rows.filter(function(r){
-          return r.caddieName === (currentUser.realName || "").trim()
-            && (!r.caddiePhone || r.caddiePhone === currentUser.phoneLast4);
-        });
-      }
-      if(rows.length){
-        var body = rows.map(function(r){
-          return '<p class="cw-main">' + esc(r.teeTime) + ' · ' + esc(r.course) + '</p><p class="cw-sub">예약자: ' + esc(r.customerName || "-") + '</p>';
-        }).join('<div style="height:8px"></div>');
-        parts.push('<div class="care-widget"><span class="cw-icon">🏌️</span><div><p class="cw-label">내일(' + esc(scheduleForTomorrow.date) + ') 내 배정</p>' + body + '</div></div>');
+      if(!allPureumiSubmitted()){
+        parts.push('<div class="care-widget"><span class="cw-icon">📝</span><div><p class="cw-label">내일 배정</p><p class="cw-main" style="color:var(--danger)">오늘 라운드 푸르미평가를 먼저 제출하세요</p><p class="cw-sub">제출 완료 시 내일 배정이 보입니다</p></div></div>');
       } else {
-        parts.push('<div class="care-widget"><span class="cw-icon">🏌️</span><div><p class="cw-label">내일 배정</p><p class="cw-main" style="color:var(--muted); font-weight:600">아직 배정 스케줄이 없습니다</p></div></div>');
+        var rows = [];
+        if(scheduleForTomorrow && scheduleForTomorrow.rows){
+          rows = scheduleForTomorrow.rows.filter(function(r){
+            return r.caddieName === (currentUser.realName || "").trim()
+              && (!r.caddiePhone || r.caddiePhone === currentUser.phoneLast4);
+          });
+        }
+        if(rows.length){
+          var body = rows.map(function(r){
+            return '<p class="cw-main">' + esc(r.teeTime) + ' · ' + esc(r.course) + '</p><p class="cw-sub">예약자: ' + esc((r.customerNames && r.customerNames.length ? r.customerNames.join(", ") : r.customerName) || "-") + '</p>';
+          }).join('<div style="height:8px"></div>');
+          parts.push('<div class="care-widget"><span class="cw-icon">🏌️</span><div><p class="cw-label">내일(' + esc(scheduleForTomorrow.date) + ') 내 배정</p>' + body + '</div></div>');
+        } else {
+          parts.push('<div class="care-widget"><span class="cw-icon">🏌️</span><div><p class="cw-label">내일 배정</p><p class="cw-main" style="color:var(--muted); font-weight:600">아직 배정 스케줄이 없습니다</p></div></div>');
+        }
       }
     }
 
@@ -2667,7 +2802,7 @@ window.VocHelper = (function(){
     $("vipDetailName").textContent = m.name || "";
     $("vipDetailGender").textContent = m.gender || "";
     $("vipDetailPhone").textContent = m.phone || "번호 미등록";
-    $("vipDetailNote").textContent = m.note || "";
+    $("vipDetailNote").textContent = [m.category, m.tags, m.note].filter(Boolean).join(" · ");
     openPopup($("vipDetailOverlay"));
   }
   $("vipDetailCloseBtn").addEventListener("click", function(){ closePopup($("vipDetailOverlay")); });
@@ -2690,10 +2825,14 @@ window.VocHelper = (function(){
       $("vipName").value = m.name || "";
       $("vipPhone").value = m.phone || "";
       $("vipNote").value = m.note || "";
+      $("vipTags").value = m.tags || "";
       $("vipPhotoInput").value = "";
       setVipPhotoPreview(m.photo, (m.name || "?").charAt(0));
       Array.prototype.forEach.call($("vipGenderGroup").querySelectorAll(".tone"), function(b){
         b.setAttribute("aria-pressed", b.dataset.gender === (m.gender || "남자") ? "true" : "false");
+      });
+      Array.prototype.forEach.call($("vipCategoryGroup").querySelectorAll(".tone"), function(b){
+        b.setAttribute("aria-pressed", b.dataset.category === (m.category || "") ? "true" : "false");
       });
       $("vipFormMsg").textContent = "";
       openPopup($("vipPopupOverlay"));
@@ -2709,15 +2848,21 @@ window.VocHelper = (function(){
   $("vipGenderGroup").addEventListener("click", function(ev){
     var b = ev.target.closest(".tone"); if(!b) return; pickInGroup(this, b);
   });
+  $("vipCategoryGroup").addEventListener("click", function(ev){
+    var b = ev.target.closest(".tone"); if(!b) return; pickInGroup(this, b);
+  });
 
   $("vipAddBtn").addEventListener("click", function(){
     vipEditId = null;
     vipPhotoData = null;
     $("vipPopupTitle").textContent = "VIP 회원 추가";
-    $("vipName").value = ""; $("vipPhone").value = ""; $("vipNote").value = "";
+    $("vipName").value = ""; $("vipPhone").value = ""; $("vipNote").value = ""; $("vipTags").value = "";
     $("vipPhotoInput").value = "";
     setVipPhotoPreview(null, "?");
     Array.prototype.forEach.call($("vipGenderGroup").querySelectorAll(".tone"), function(b, i){
+      b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+    });
+    Array.prototype.forEach.call($("vipCategoryGroup").querySelectorAll(".tone"), function(b, i){
       b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
     });
     $("vipFormMsg").textContent = "";
@@ -2729,11 +2874,14 @@ window.VocHelper = (function(){
     var name = $("vipName").value.trim();
     var phone = $("vipPhone").value.trim();
     var note = $("vipNote").value.trim();
+    var tags = $("vipTags").value.trim();
     var genderBtn = $("vipGenderGroup").querySelector('.tone[aria-pressed="true"]');
     var gender = genderBtn ? genderBtn.dataset.gender : "남자";
+    var categoryBtn = $("vipCategoryGroup").querySelector('.tone[aria-pressed="true"]');
+    var category = categoryBtn ? categoryBtn.dataset.category : "";
     if(!name){ $("vipFormMsg").textContent = "이름을 입력하세요."; return; }
     var id = vipEditId || (Date.now().toString(36) + Math.random().toString(36).slice(2,6));
-    var data = { name: name, phone: phone, gender: gender, note: note, ts: Date.now() };
+    var data = { name: name, phone: phone, gender: gender, note: note, category: category, tags: tags, ts: Date.now() };
     if(vipPhotoData){
       data.photo = vipPhotoData;
     } else if(vipEditId){
@@ -2762,6 +2910,331 @@ window.VocHelper = (function(){
     else { window.addEventListener("vipdb-ready", attach, { once:true }); }
   }
   startVipDb();
+
+  /* ---------- 푸르미평가 (캐디 전용) ---------- */
+  var POS_EVAL_TAGS = [
+    { id:"etiquette", label:"#에티켓우수", score:5, kind:"green" },
+    { id:"manner", label:"#매너우수", score:5, kind:"green" },
+    { id:"kind", label:"#친절응대", score:3, kind:"blue" },
+    { id:"foodpraise", label:"#식음칭찬", score:3, kind:"blue" },
+    { id:"general", label:"#일반제보", score:1, kind:"slate" }
+  ];
+  var NEG_EVAL_TAGS = [
+    { id:"c1", label:"#불만_1단계(경미)", score:-1, kind:"amber" },
+    { id:"c2", label:"#불만_2단계(일반)", score:-3, kind:"orange" },
+    { id:"c3", label:"#불만_3단계(강성)", score:-5, kind:"red" }
+  ];
+  var ALL_EVAL_TAGS = POS_EVAL_TAGS.concat(NEG_EVAL_TAGS);
+
+  var scheduleForToday = null;
+  var pureumiEvalCache = [];
+  var pureumiStarted = false;
+  var pureumiCurrentRow = null;
+  var pureumiTeamTagSet = {};
+  var pureumiIndivData = [];
+
+  function pureumiEvalKey(date, uid, row){
+    return date + "_" + uid + "_" + String(row.teeTime || "").replace(/[^0-9]/g, "") + "_" + (row.course || "");
+  }
+
+  function myPureumiTeams(){
+    if(!currentUser || !scheduleForToday || !scheduleForToday.rows) return [];
+    return scheduleForToday.rows.filter(function(r){
+      return r.caddieName === (currentUser.realName || "").trim()
+        && (!r.caddiePhone || r.caddiePhone === currentUser.phoneLast4);
+    });
+  }
+
+  function pureumiRowNames(row){
+    return (row.customerNames && row.customerNames.length ? row.customerNames : [row.customerName]).filter(Boolean);
+  }
+
+  function isPureumiSubmitted(row){
+    if(!currentUser) return false;
+    var key = pureumiEvalKey(todayDateStr(0), currentUser.uid, row);
+    return pureumiEvalCache.some(function(e){ return e.id === key; });
+  }
+
+  function allPureumiSubmitted(){
+    var teams = myPureumiTeams();
+    if(teams.length === 0) return true;
+    return teams.every(isPureumiSubmitted);
+  }
+
+  function tagScoreSum(tagSet){
+    return ALL_EVAL_TAGS.filter(function(t){ return tagSet[t.id]; }).reduce(function(s, t){ return s + t.score; }, 0);
+  }
+
+  function tagButtonsHtml(){
+    return ALL_EVAL_TAGS.map(function(t){
+      return '<button class="eval-tag" data-kind="' + t.kind + '" data-tag="' + t.id + '" aria-pressed="false">'
+        + '[' + (t.score > 0 ? "+" : "") + t.score + '점] ' + esc(t.label) + '</button>';
+    }).join("");
+  }
+
+  function renderPureumiList(){
+    if(!currentUser || currentUser.department !== "캐디") return;
+    $("pureumiWho").textContent = "담당 캐디: " + (currentUser.realName || currentUser.id) + (currentUser.phoneLast4 ? " (" + currentUser.phoneLast4 + ")" : "");
+    var teams = myPureumiTeams();
+    if(teams.length === 0){
+      $("pureumiTeamList").innerHTML = '<p class="muted">오늘 배정된 팀이 없습니다.</p>';
+      return;
+    }
+    $("pureumiTeamList").innerHTML = teams.map(function(r, i){
+      var done = isPureumiSubmitted(r);
+      var names = pureumiRowNames(r).join(", ");
+      return '<div class="pureumi-team-card" data-idx="' + i + '">'
+        + '<div class="ptc-top"><span class="ptc-time">' + esc(r.teeTime) + ' · ' + esc(r.course) + '</span>'
+        + '<span class="pureumi-status ' + (done ? "done" : "pending") + '">' + (done ? "제출완료 ✓" : "평가 필요") + '</span></div>'
+        + '<p class="ptc-names">예약자: ' + esc(names || "-") + '</p>'
+        + '</div>';
+    }).join("");
+  }
+
+  function renderPureumiCustomerTable(names){
+    if(names.length === 0){
+      $("pureumiCustomerTable").innerHTML = '<p class="muted">등록된 동반자 정보가 없습니다.</p>';
+      return;
+    }
+    $("pureumiCustomerTable").innerHTML = names.map(function(name, i){
+      var vip = vipCache.filter(function(v){ return normalizeVip(v.name) === normalizeVip(name); })[0];
+      var chips = [];
+      if(vip){
+        if(vip.category) chips.push('<span class="tag">' + esc(vip.category) + '</span>');
+        (vip.tags || "").split(/\s+/).filter(Boolean).forEach(function(t){ chips.push('<span class="tag">' + esc(t) + '</span>'); });
+      }
+      return '<div class="customer-card">'
+        + '<div class="cc-top"><span class="cc-num">' + (i + 1) + '</span><span class="cc-name">' + esc(name) + '</span>'
+        + (vip ? '<span class="tag">⭐ VIP</span>' : '<span class="tag">일반</span>') + '</div>'
+        + (chips.length ? '<div class="cc-tags">' + chips.join("") + '</div>' : '')
+        + (vip && vip.note ? '<p class="cc-memo">비고: ' + esc(vip.note) + '</p>' : '')
+        + '</div>';
+    }).join("");
+  }
+
+  function updatePureumiTeamScore(){
+    var sum = tagScoreSum(pureumiTeamTagSet);
+    var el = $("pureumiTeamScore");
+    el.textContent = (Object.keys(pureumiTeamTagSet).length === 0 ? "선택안함" : "선택됨") + " · " + (sum > 0 ? "+" : "") + sum + "점";
+    el.className = "eval-score " + (sum > 0 ? "pos" : sum < 0 ? "neg" : "zero");
+  }
+
+  function updatePureumiIndivScore(i){
+    var el = $("pureumiIndivPane").querySelector('[data-indiv-score="' + i + '"]');
+    if(!el) return;
+    var sum = tagScoreSum(pureumiIndivData[i].tags);
+    el.textContent = (Object.keys(pureumiIndivData[i].tags).length === 0 ? "선택안함" : "선택됨") + " · " + (sum > 0 ? "+" : "") + sum + "점";
+    el.className = "eval-score " + (sum > 0 ? "pos" : sum < 0 ? "neg" : "zero");
+  }
+
+  function renderPureumiIndivPane(){
+    $("pureumiIndivPane").innerHTML = pureumiIndivData.map(function(cu, i){
+      return '<div class="customer-card">'
+        + '<div class="cc-top"><span class="cc-num">' + (i + 1) + '</span><span class="cc-name">' + esc(cu.name) + '</span></div>'
+        + '<div class="eval-tags" data-indiv-tags="' + i + '">' + tagButtonsHtml() + '</div>'
+        + '<p class="eval-score zero" data-indiv-score="' + i + '">선택안함 · 0점</p>'
+        + '<textarea data-indiv-note="' + i + '" style="min-height:70px" placeholder="개별 메모 (선택)"></textarea>'
+        + '</div>';
+    }).join("");
+    pureumiIndivData.forEach(function(cu, i){
+      var wrap = $("pureumiIndivPane").querySelector('[data-indiv-tags="' + i + '"]');
+      Array.prototype.forEach.call(wrap.querySelectorAll(".eval-tag"), function(b){
+        b.setAttribute("aria-pressed", cu.tags[b.dataset.tag] ? "true" : "false");
+      });
+      updatePureumiIndivScore(i);
+      $("pureumiIndivPane").querySelector('[data-indiv-note="' + i + '"]').value = cu.note || "";
+    });
+  }
+
+  function showPureumiTab(tab){
+    $("pureumiTabTeam").setAttribute("aria-pressed", tab === "team" ? "true" : "false");
+    $("pureumiTabIndiv").setAttribute("aria-pressed", tab === "indiv" ? "true" : "false");
+    $("pureumiTeamPane").classList.toggle("hidden-view", tab !== "team");
+    $("pureumiIndivPane").classList.toggle("hidden-view", tab !== "indiv");
+  }
+  $("pureumiTabTeam").addEventListener("click", function(){ showPureumiTab("team"); });
+  $("pureumiTabIndiv").addEventListener("click", function(){ showPureumiTab("indiv"); });
+
+  function openPureumiForm(row){
+    pureumiCurrentRow = row;
+    var names = pureumiRowNames(row);
+    pureumiTeamTagSet = {};
+    pureumiIndivData = names.map(function(n){ return { name: n, tags: {}, note: "" }; });
+
+    $("pureumiFormTitle").textContent = (row.teeTime || "") + " · " + (row.course || "");
+    $("pureumiFormSub").textContent = "담당 캐디: " + (currentUser.realName || currentUser.id);
+
+    renderPureumiCustomerTable(names);
+    $("pureumiTeamTags").innerHTML = tagButtonsHtml();
+    $("pureumiTeamMemo").value = "";
+    updatePureumiTeamScore();
+    renderPureumiIndivPane();
+
+    var key = pureumiEvalKey(todayDateStr(0), currentUser.uid, row);
+    var existing = pureumiEvalCache.filter(function(e){ return e.id === key; })[0];
+    if(existing){
+      (existing.teamEval && existing.teamEval.tags || []).forEach(function(tid){ pureumiTeamTagSet[tid] = true; });
+      Array.prototype.forEach.call($("pureumiTeamTags").querySelectorAll(".eval-tag"), function(b){
+        b.setAttribute("aria-pressed", pureumiTeamTagSet[b.dataset.tag] ? "true" : "false");
+      });
+      $("pureumiTeamMemo").value = (existing.teamEval && existing.teamEval.note) || "";
+      updatePureumiTeamScore();
+      if(existing.individualEvals){
+        existing.individualEvals.forEach(function(ie, i){
+          if(!pureumiIndivData[i]) return;
+          (ie.tags || []).forEach(function(tid){ pureumiIndivData[i].tags[tid] = true; });
+          pureumiIndivData[i].note = ie.note || "";
+        });
+        renderPureumiIndivPane();
+      }
+    }
+
+    showPureumiTab("team");
+    $("pureumiListCard").classList.add("hidden-view");
+    $("pureumiFormCard").classList.remove("hidden-view");
+    $("pureumiSubmitMsg").textContent = "";
+  }
+
+  $("pureumiTeamList").addEventListener("click", function(ev){
+    var card = ev.target.closest(".pureumi-team-card"); if(!card) return;
+    var idx = Number(card.getAttribute("data-idx"));
+    var team = myPureumiTeams()[idx];
+    if(team) openPureumiForm(team);
+  });
+
+  $("pureumiBackToListBtn").addEventListener("click", function(){
+    $("pureumiFormCard").classList.add("hidden-view");
+    $("pureumiListCard").classList.remove("hidden-view");
+    renderPureumiList();
+  });
+
+  $("pureumiTeamTags").addEventListener("click", function(ev){
+    var b = ev.target.closest(".eval-tag"); if(!b) return;
+    var tid = b.dataset.tag;
+    var pressed = b.getAttribute("aria-pressed") === "true";
+    b.setAttribute("aria-pressed", pressed ? "false" : "true");
+    if(pressed){ delete pureumiTeamTagSet[tid]; } else { pureumiTeamTagSet[tid] = true; }
+    updatePureumiTeamScore();
+  });
+
+  $("pureumiIndivPane").addEventListener("click", function(ev){
+    var b = ev.target.closest(".eval-tag"); if(!b) return;
+    var wrap = ev.target.closest("[data-indiv-tags]"); if(!wrap) return;
+    var i = Number(wrap.getAttribute("data-indiv-tags"));
+    var tid = b.dataset.tag;
+    var pressed = b.getAttribute("aria-pressed") === "true";
+    b.setAttribute("aria-pressed", pressed ? "false" : "true");
+    if(pressed){ delete pureumiIndivData[i].tags[tid]; } else { pureumiIndivData[i].tags[tid] = true; }
+    updatePureumiIndivScore(i);
+  });
+
+  $("pureumiIndivPane").addEventListener("input", function(ev){
+    var ta = ev.target.closest("textarea[data-indiv-note]"); if(!ta) return;
+    var i = Number(ta.getAttribute("data-indiv-note"));
+    if(pureumiIndivData[i]) pureumiIndivData[i].note = ta.value;
+  });
+
+  var pureumiRecognition = null;
+  var pureumiListening = false;
+  function stopPureumiMic(){
+    pureumiListening = false;
+    $("pureumiMicBtn").classList.remove("listening");
+    $("pureumiMicStatus").textContent = "";
+  }
+  (function setupPureumiMic(){
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR){
+      $("pureumiMicBtn").disabled = true;
+      $("pureumiMicStatus").textContent = "이 브라우저는 음성 인식을 지원하지 않습니다";
+      return;
+    }
+    pureumiRecognition = new SR();
+    pureumiRecognition.lang = "ko-KR";
+    pureumiRecognition.continuous = true;
+    pureumiRecognition.interimResults = false;
+    pureumiRecognition.onresult = function(ev){
+      var text = "";
+      for(var i = ev.resultIndex; i < ev.results.length; i++){ text += ev.results[i][0].transcript; }
+      var ta = $("pureumiTeamMemo");
+      ta.value = (ta.value ? ta.value.trim() + " " : "") + text.trim();
+    };
+    pureumiRecognition.onerror = function(){ stopPureumiMic(); };
+    pureumiRecognition.onend = function(){ stopPureumiMic(); };
+  })();
+  $("pureumiMicBtn").addEventListener("click", function(){
+    if(!pureumiRecognition) return;
+    if(pureumiListening){
+      pureumiRecognition.stop();
+      stopPureumiMic();
+    } else {
+      try{
+        pureumiRecognition.start();
+        pureumiListening = true;
+        $("pureumiMicBtn").classList.add("listening");
+        $("pureumiMicStatus").textContent = "듣는 중… 다시 누르면 멈춥니다";
+      }catch(e){}
+    }
+  });
+
+  $("pureumiSubmitBtn").addEventListener("click", function(){
+    if(!pureumiCurrentRow || !currentUser) return;
+    var teamTagIds = Object.keys(pureumiTeamTagSet);
+    var memo = $("pureumiTeamMemo").value.trim();
+    if(teamTagIds.length === 0 && !memo){
+      $("pureumiSubmitMsg").textContent = "대표 태그를 선택하거나 정성 피드백을 입력하세요.";
+      return;
+    }
+    var date = todayDateStr(0);
+    var key = pureumiEvalKey(date, currentUser.uid, pureumiCurrentRow);
+    var data = {
+      date: date,
+      caddieUid: currentUser.uid,
+      caddieName: currentUser.realName || currentUser.id,
+      teeTime: pureumiCurrentRow.teeTime || "",
+      course: pureumiCurrentRow.course || "",
+      customerNames: pureumiRowNames(pureumiCurrentRow),
+      teamEval: { tags: teamTagIds, score: tagScoreSum(pureumiTeamTagSet), note: memo },
+      individualEvals: pureumiIndivData.map(function(cu){
+        return { name: cu.name, tags: Object.keys(cu.tags), score: tagScoreSum(cu.tags), note: cu.note };
+      }),
+      submittedAt: Date.now()
+    };
+    $("pureumiSubmitBtn").disabled = true;
+    window.PureumiDB.save(key, data).then(function(){
+      flash("저장 완료 ✓ 내일 배정 조회가 잠금 해제됩니다");
+      $("pureumiFormCard").classList.add("hidden-view");
+      $("pureumiListCard").classList.remove("hidden-view");
+    }).catch(function(){
+      $("pureumiSubmitMsg").textContent = "저장 실패. 다시 시도하세요.";
+    }).finally(function(){
+      $("pureumiSubmitBtn").disabled = false;
+    });
+  });
+
+  function startPureumi(){
+    if(pureumiStarted || !currentUser || currentUser.department !== "캐디") return;
+    pureumiStarted = true;
+
+    function attachTodaySchedule(){
+      window.ScheduleDB.subscribeDate(todayDateStr(0), function(sched){
+        scheduleForToday = sched;
+        renderPureumiList();
+        renderCareSummary();
+      });
+    }
+    if(window.ScheduleDB){ attachTodaySchedule(); }
+    else { window.addEventListener("scheduledb-ready", attachTodaySchedule, { once:true }); }
+
+    function attachEvals(){
+      window.PureumiDB.subscribeDate(todayDateStr(0), currentUser.uid, function(list){
+        pureumiEvalCache = list;
+        renderPureumiList();
+        renderCareSummary();
+      });
+    }
+    if(window.PureumiDB){ attachEvals(); }
+    else { window.addEventListener("pureumidb-ready", attachEvals, { once:true }); }
+  }
 
   /* ---------- 대면교육 예약 ---------- */
   var trainingSlotCache = [];
@@ -3053,6 +3526,7 @@ window.VocHelper = (function(){
   var schedulesCol = collection(db, "schedules");
   var vipMembersCol = collection(db, "vipMembers");
   var trainingSlotsCol = collection(db, "trainingSlots");
+  var pureumiEvalsCol = collection(db, "pureumiEvals");
 
   function idToEmail(id){ return id.trim().toLowerCase() + "@vochelper.local"; }
 
@@ -3401,6 +3875,25 @@ window.VocHelper = (function(){
     }
   };
   window.dispatchEvent(new Event("trainingdb-ready"));
+
+  window.PureumiDB = {
+    subscribeDate: function(date, uid, onChange){
+      // 복합 인덱스 없이 동작하도록 날짜로만 쿼리하고 캐디는 클라이언트에서 거른다.
+      var q = query(pureumiEvalsCol, where("date", "==", date));
+      return onSnapshot(q, function(snap){
+        var list = [];
+        snap.forEach(function(d){
+          var data = d.data();
+          if(data.caddieUid !== uid) return;
+          data.id = d.id;
+          list.push(data);
+        });
+        onChange(list);
+      }, function(err){ console.error("Firestore subscribe error", err); });
+    },
+    save: function(id, data){ return setDoc(doc(pureumiEvalsCol, id), data); }
+  };
+  window.dispatchEvent(new Event("pureumidb-ready"));
 </script>
 <script>
   if("serviceWorker" in navigator){
