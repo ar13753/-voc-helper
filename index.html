@@ -702,7 +702,7 @@
         <div id="pureumiIndivPane" class="hidden-view"></div>
 
         <div class="pureumi-submit-bar">
-          <button class="action" id="pureumiSubmitBtn" style="width:100%">📡 그린잇(GREENIT) ERP로 VOE 전송 및 자동 저장</button>
+          <button class="action" id="pureumiSubmitBtn" style="width:100%">확인</button>
           <p id="pureumiSubmitMsg" class="muted" style="min-height:1.2em; margin:6px 0 0; text-align:center"></p>
         </div>
       </section>
@@ -3079,7 +3079,7 @@ window.VocHelper = (function(){
     $("pureumiFormSub").textContent = row.isSample
       ? "⚠️ 샘플 미리보기 — 이 화면에서 제출해도 실제로 저장되지 않습니다."
       : "담당 캐디: " + (currentUser.realName || currentUser.id);
-    $("pureumiSubmitBtn").textContent = row.isSample ? "📡 그린잇(GREENIT) ERP로 VOE 전송 및 자동 저장 (샘플이라 비활성)" : "📡 그린잇(GREENIT) ERP로 VOE 전송 및 자동 저장";
+    $("pureumiSubmitBtn").textContent = row.isSample ? "확인 (샘플이라 비활성)" : "확인";
     $("pureumiSubmitBtn").disabled = !!row.isSample;
 
     renderPureumiCustomerTable(names);
