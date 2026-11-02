@@ -1691,7 +1691,7 @@ window.VocHelper = (function(){
     $("scheduleUploadBtn").style.display = user.role === "admin" ? "" : "none";
     $("trainingTargetsBtn").style.display = user.role === "admin" ? "" : "none";
     $("trainingSlotsBtn").style.display = user.role === "admin" ? "" : "none";
-    $("tabPureumiBtn").style.display = user.department === "캐디" ? "" : "none";
+    $("tabPureumiBtn").style.display = (user.department === "캐디" || user.role === "admin") ? "" : "none";
     updateTrainingReminder(user);
     showView("care");
     startCareBoard();
@@ -2973,7 +2973,7 @@ window.VocHelper = (function(){
   }
 
   function renderPureumiList(){
-    if(!currentUser || currentUser.department !== "캐디") return;
+    if(!currentUser || !(currentUser.department === "캐디" || currentUser.role === "admin")) return;
     $("pureumiWho").textContent = "담당 캐디: " + (currentUser.realName || currentUser.id) + (currentUser.phoneLast4 ? " (" + currentUser.phoneLast4 + ")" : "");
     var teams = myPureumiTeams();
     if(teams.length === 0){
@@ -3212,7 +3212,7 @@ window.VocHelper = (function(){
   });
 
   function startPureumi(){
-    if(pureumiStarted || !currentUser || currentUser.department !== "캐디") return;
+    if(pureumiStarted || !currentUser || !(currentUser.department === "캐디" || currentUser.role === "admin")) return;
     pureumiStarted = true;
 
     function attachTodaySchedule(){
