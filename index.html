@@ -217,6 +217,14 @@
   .care-widget .cw-sub{ font-size:12px; color:var(--muted); margin:2px 0 0 }
   .care-widget.accident .cw-main{ color:var(--danger) }
   .care-widget.accident.zero .cw-main{ color:var(--ok) }
+  .care-widget.weather{ cursor:pointer }
+  .care-widget.weather .cw-more{ margin-left:auto; font-size:12px; color:var(--muted); flex-shrink:0 }
+  .weather-links{ flex:1 1 100%; display:flex; flex-wrap:wrap; gap:8px }
+  .weather-links a{
+    flex:1 1 120px; text-align:center; text-decoration:none;
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:10px 12px; font-size:13px; font-weight:700; color:var(--ink);
+  }
 
   .care-feed{ display:flex; flex-direction:column; gap:12px }
   .care-card{ background:var(--card); border:1px solid var(--line); border-left:4px solid var(--line); border-radius:14px; padding:14px; }
@@ -2429,6 +2437,18 @@ window.VocHelper = (function(){
       .catch(function(){ /* 날씨 조회 실패 시 위젯은 "불러오는 중" 상태로 남겨둠 */ });
   }
 
+  // 날씨 위젯을 누르면 펼쳐지는 외부 날씨 사이트 목록
+  var WEATHER_LINKS = [
+    { label:"🌍 아큐웨더", url:"https://www.accuweather.com/ko/search-locations?query=%ED%8F%AC%EC%B2%9C" },
+    { label:"🇰🇷 기상청 날씨알리미", url:"https://www.weather.go.kr/w/index.do" }
+  ];
+  var weatherLinksOpen = false;
+  $("careSummary").addEventListener("click", function(e){
+    if(!e.target.closest('[data-act="weather"]')) return;
+    weatherLinksOpen = !weatherLinksOpen;
+    renderCareSummary();
+  });
+
   function renderCareSummary(){
     var parts = [];
 
@@ -2454,10 +2474,16 @@ window.VocHelper = (function(){
       }
     }
 
+    var weatherMore = '<span class="cw-more">' + (weatherLinksOpen ? "닫기 ▲" : "더보기 ▼") + '</span>';
     if(weatherState){
-      parts.push('<div class="care-widget"><span class="cw-icon">' + weatherState.icon + '</span><div><p class="cw-label">오늘 날씨 · 포천 가산</p><p class="cw-main">' + weatherState.tempC + '°C · ' + esc(weatherState.desc) + '</p><p class="cw-sub">바람 ' + weatherState.wind + 'm/s</p></div></div>');
+      parts.push('<div class="care-widget weather" data-act="weather"><span class="cw-icon">' + weatherState.icon + '</span><div><p class="cw-label">오늘 날씨 · 포천 가산</p><p class="cw-main">' + weatherState.tempC + '°C · ' + esc(weatherState.desc) + '</p><p class="cw-sub">바람 ' + weatherState.wind + 'm/s</p></div>' + weatherMore + '</div>');
     } else {
-      parts.push('<div class="care-widget"><span class="cw-icon">🌤️</span><div><p class="cw-label">오늘 날씨</p><p class="cw-main" style="color:var(--muted); font-weight:600">불러오는 중…</p></div></div>');
+      parts.push('<div class="care-widget weather" data-act="weather"><span class="cw-icon">🌤️</span><div><p class="cw-label">오늘 날씨</p><p class="cw-main" style="color:var(--muted); font-weight:600">불러오는 중…</p></div>' + weatherMore + '</div>');
+    }
+    if(weatherLinksOpen){
+      parts.push('<div class="weather-links">' + WEATHER_LINKS.map(function(l){
+        return '<a href="' + l.url + '" target="_blank" rel="noopener">' + esc(l.label) + '</a>';
+      }).join("") + '</div>');
     }
 
     var todayStart = new Date(); todayStart.setHours(0,0,0,0);
