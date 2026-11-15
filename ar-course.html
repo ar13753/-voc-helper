@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Solmate AR 코스 가이드</title>
+<style>
+  :root { --navy:#133069; --green:#2ee66b; --red:#ff4d4d; --gold:#ffd24d; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#000; font-family:-apple-system,"Noto Sans KR","Malgun Gothic",sans-serif; color:#fff; }
+  #cam { position:fixed; inset:0; width:100%; height:100%; object-fit:cover; }
+  #ar { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; }
+  .top { position:fixed; top:0; left:0; right:0; padding:calc(env(safe-area-inset-top) + 8px) 10px 8px; background:linear-gradient(rgba(0,0,0,.75),rgba(0,0,0,0)); display:flex; flex-direction:column; gap:6px; z-index:5; }
+  .row { display:flex; gap:6px; align-items:center; }
+  select,button,input { font:inherit; font-size:14px; border-radius:10px; border:none; }
+  select { padding:8px 10px; background:rgba(255,255,255,.92); color:#111; }
+  .tabs { display:flex; background:rgba(255,255,255,.15); border-radius:10px; overflow:hidden; margin-left:auto; }
+  .tabs button { padding:8px 12px; background:none; color:#fff; }
+  .tabs button.on { background:var(--navy); font-weight:700; }
+  .bottom { position:fixed; left:0; right:0; bottom:0; padding:10px 12px calc(env(safe-area-inset-bottom) + 12px); background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.85) 30%); z-index:5; }
+  .dist { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .chip { background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.25); border-radius:12px; padding:6px 10px; font-size:13px; }
+  .chip b { font-size:18px; margin-left:4px; }
+  .chip.g b { color:var(--green); } .chip.r b { color:var(--red); } .chip.y b { color:var(--gold); }
+  .status { font-size:12px; opacity:.8; display:flex; justify-content:space-between; gap:8px; }
+  .cal { display:flex; align-items:center; gap:8px; font-size:12px; margin-top:6px; }
+  .cal input { flex:1; }
+  .panel { display:none; flex-direction:column; gap:8px; }
+  .panel.on { display:flex; }
+  .btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .btn { padding:12px; background:var(--navy); color:#fff; font-weight:700; }
+  .btn.alt { background:rgba(255,255,255,.18); }
+  .btn.red { background:#a32626; }
+  .saved { font-size:12px; opacity:.85; line-height:1.5; }
+  #start { position:fixed; inset:0; background:var(--navy); z-index:20; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:30px; text-align:center; }
+  #start h1 { font-size:24px; } #start p { font-size:14px; opacity:.85; line-height:1.6; }
+  #start button { padding:14px 40px; font-size:17px; font-weight:700; background:#fff; color:var(--navy); }
+  #modal { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:30; display:none; align-items:center; justify-content:center; padding:20px; }
+  #modal.on { display:flex; }
+  #modal .box { background:#fff; color:#111; border-radius:14px; padding:16px; width:100%; max-width:480px; display:flex; flex-direction:column; gap:10px; }
+  #modal textarea { width:100%; height:220px; font-family:monospace; font-size:11px; border:1px solid #ccc; border-radius:8px; padding:8px; }
+  #toast { position:fixed; top:40%; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.85); padding:10px 18px; border-radius:20px; font-size:14px; z-index:40; display:none; }
+</style>
+</head>
+<body>
+<video id="cam" autoplay playsinline muted></video>
+<canvas id="ar"></canvas>
+
+<div class="top">
+  <div class="row">
+    <select id="course"></select>
+    <select id="hole"></select>
+    <div class="tabs">
+      <button data-mode="ar" class="on">AR</button>
+      <button data-mode="rec">기록</button>
+      <button data-mode="demo">데모</button>
+    </div>
+  </div>
+</div>
+
+<div class="bottom">
+  <!-- AR / 데모 공통 -->
+  <div class="dist" id="dist"></div>
+
+  <!-- 기록 모드 -->
+  <div class="panel" id="recPanel">
+    <div class="saved" id="savedInfo"></div>
+    <div class="btns">
+      <button class="btn" data-save="tee">티잉 구역 저장</button>
+      <button class="btn" data-save="target">추천 낙하지점 저장</button>
+      <button class="btn" data-save="green">그린 중앙 저장</button>
+      <button class="btn red" data-save="hazard">해저드 추가</button>
+      <button class="btn alt" id="clearHole">이 홀 초기화</button>
+      <button class="btn alt" id="exportBtn">전체 내보내기/불러오기</button>
+    </div>
+  </div>
+
+  <!-- 데모 모드 -->
+  <div class="panel" id="demoPanel">
+    <div class="saved">사무실에서 시연용: 지금 바라보는 방향으로 가상 홀(낙하지점 180m · 해저드 150m · 그린 330m)을 만듭니다.</div>
+    <button class="btn" id="demoBtn">지금 방향으로 가상 홀 만들기</button>
+  </div>
+
+  <div class="cal">방향 보정 <input type="range" id="offset" min="-40" max="40" value="0"><span id="offVal">0°</span></div>
+  <div class="status"><span id="gpsS">GPS 대기 중</span><span id="hdgS">방향 -</span></div>
+</div>
+
+<div id="start">
+  <h1>Solmate AR 코스 가이드</h1>
+  <p>카메라로 코스를 비추면 공략 라인과 거리가 화면에 표시됩니다.<br>카메라 · 위치 · 방향 센서 권한을 허용해 주세요.<br><small>위치 데이터는 이 기기 안에만 저장됩니다.</small></p>
+  <button id="go">시작하기</button>
+</div>
+
+<div id="modal"><div class="box">
+  <b>코스 데이터 (JSON)</b>
+  <small>복사해서 보관하거나, 다른 기기에서 붙여넣고 [불러오기]를 누르세요.</small>
+  <textarea id="json"></textarea>
+  <div class="btns">
+    <button class="btn" id="copyBtn">복사</button>
+    <button class="btn" id="importBtn">불러오기</button>
+    <button class="btn alt" id="closeBtn" style="grid-column:span 2">닫기</button>
+  </div>
+</div></div>
+<div id="toast"></div>
+
+<script>
+/* ===== 설정: 코스명과 홀 수는 실제에 맞게 수정 ===== */
+const COURSES = { "마운틴": 9, "밸리": 9, "레이크": 9 };
+const H_FOV = 50;          // 세로로 든 휴대폰 후면 카메라의 가로 화각(도)
+const V_FOV = 66;          // 세로 화각(도)
+const EYE_H = 1.6;         // 눈높이(m) — 지면 위치 계산용
+const STORE = "solmate_ar_course_v1";
+
+/* ===== 상태 ===== */
+let mode = "ar", pos = null, heading = null, pitch = 0, demo = null;
+let data = JSON.parse(localStorage.getItem(STORE) || "{}");
+const $ = s => document.querySelector(s);
+const cv = $("#ar"), ctx = cv.getContext("2d");
+
+/* ===== 지리 계산 ===== */
+const R = 6371000, rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI;
+function dist(a, b) {
+  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat/2)**2 + Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function bearing(a, b) {
+  const y = Math.sin(rad(b.lng - a.lng)) * Math.cos(rad(b.lat));
+  const x = Math.cos(rad(a.lat))*Math.sin(rad(b.lat)) - Math.sin(rad(a.lat))*Math.cos(rad(b.lat))*Math.cos(rad(b.lng - a.lng));
+  return (deg(Math.atan2(y, x)) + 360) % 360;
+}
+function dest(a, brg, d) {
+  const δ = d / R, θ = rad(brg), φ1 = rad(a.lat), λ1 = rad(a.lng);
+  const φ2 = Math.asin(Math.sin(φ1)*Math.cos(δ) + Math.cos(φ1)*Math.sin(δ)*Math.cos(θ));
+  const λ2 = λ1 + Math.atan2(Math.sin(θ)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ) - Math.sin(φ1)*Math.sin(φ2));
+  return { lat: deg(φ2), lng: deg(λ2) };
+}
+const norm = a => ((a + 540) % 360) - 180;
+
+/* ===== 코스/홀 선택 ===== */
+const key = () => `${$("#course").value}-${$("#hole").value}`;
+const hole = () => data[key()] || (data[key()] = { hazards: [] });
+function fillSelects() {
+  $("#course").innerHTML = Object.keys(COURSES).map(c => `<option>${c}</option>`).join("");
+  fillHoles();
+}
+function fillHoles() {
+  const n = COURSES[$("#course").value];
+  $("#hole").innerHTML = Array.from({length:n}, (_, i) => `<option value="${i+1}">${i+1}번 홀</option>`).join("");
+  renderSaved();
+}
+$("#course").onchange = fillHoles;
+$("#hole").onchange = renderSaved;
+const save = () => localStorage.setItem(STORE, JSON.stringify(data));
+
+/* ===== 모드 ===== */
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); mode = b.dataset.mode;
+  $("#recPanel").classList.toggle("on", mode === "rec");
+  $("#demoPanel").classList.toggle("on", mode === "demo");
+});
+
+/* ===== 센서 시작 ===== */
+$("#go").onclick = async () => {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+    $("#cam").srcObject = s;
+  } catch (e) { toast("카메라를 열 수 없습니다: " + e.message); }
+  try {
+    if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission)
+      await DeviceOrientationEvent.requestPermission();
+  } catch (e) {}
+  if ("ondeviceorientationabsolute" in window) addEventListener("deviceorientationabsolute", onOri);
+  else addEventListener("deviceorientation", onOri);
+  navigator.geolocation.watchPosition(p => {
+    pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy };
+    $("#gpsS").textContent = `GPS 오차 ±${Math.round(pos.acc)}m`;
+  }, e => $("#gpsS").textContent = "GPS 오류: " + e.message, { enableHighAccuracy: true, maximumAge: 1000 });
+  $("#start").style.display = "none";
+};
+
+/* 휴대폰 뒷면(카메라)이 향하는 나침반 방향 계산 */
+let hx = 0, hy = 0;
+function onOri(e) {
+  let h;
+  if (typeof e.webkitCompassHeading === "number") h = e.webkitCompassHeading;     // iOS
+  else if (e.alpha != null && (e.absolute || e.type === "deviceorientationabsolute")) {
+    const x = rad(e.beta), y = rad(e.gamma), z = rad(e.alpha);
+    const Vx = -Math.cos(z)*Math.sin(y) - Math.sin(z)*Math.sin(x)*Math.cos(y);
+    const Vy = -Math.sin(z)*Math.sin(y) + Math.cos(z)*Math.sin(x)*Math.cos(y);
+    h = deg(Math.atan2(Vx, Vy)); h = (h + 360) % 360;
+  } else return;
+  hx = hx * 0.85 + Math.sin(rad(h)) * 0.15;    // 흔들림 완화
+  hy = hy * 0.85 + Math.cos(rad(h)) * 0.15;
+  heading = (deg(Math.atan2(hx, hy)) + 360) % 360;
+  if (e.beta != null) pitch = pitch * 0.8 + (e.beta - 90) * 0.2;   // 0 = 수평, + = 위로
+  $("#hdgS").textContent = `방향 ${Math.round(heading)}°`;
+}
+$("#offset").oninput = e => $("#offVal").textContent = e.target.value + "°";
+
+/* ===== 기록 모드: 5초간 GPS 평균으로 저장 ===== */
+function sample(sec = 5) {
+  return new Promise((ok, no) => {
+    const pts = [], t0 = Date.now();
+    const id = navigator.geolocation.watchPosition(p => {
+      if (p.coords.accuracy <= 25) pts.push(p.coords);
+      const left = sec - Math.floor((Date.now() - t0) / 1000);
+      toast(`위치 측정 중… ${Math.max(left,0)}초 (가만히 서 주세요)`, 1200);
+      if (Date.now() - t0 > sec * 1000) {
+        navigator.geolocation.clearWatch(id);
+        if (!pts.length) return no(new Error("GPS 정확도가 낮습니다. 하늘이 트인 곳에서 다시 시도하세요."));
+        ok({ lat: pts.reduce((s,c)=>s+c.latitude,0)/pts.length, lng: pts.reduce((s,c)=>s+c.longitude,0)/pts.length,
+             acc: Math.round(pts.reduce((s,c)=>s+c.accuracy,0)/pts.length) });
+      }
+    }, e => no(e), { enableHighAccuracy: true, maximumAge: 0 });
+  });
+}
+document.querySelectorAll("[data-save]").forEach(b => b.onclick = async () => {
+  const t = b.dataset.save;
+  let name = "";
+  if (t === "hazard") { name = prompt("해저드 이름 (예: 왼쪽 벙커, 연못)"); if (!name) return; }
+  try {
+    const p = await sample();
+    const h = hole();
+    if (t === "hazard") h.hazards.push({ name, ...p }); else h[t] = p;
+    save(); renderSaved(); toast(`저장 완료 (오차 ±${p.acc}m)`);
+  } catch (e) { toast(e.message, 3000); }
+});
+$("#clearHole").onclick = () => { if (confirm("이 홀의 저장 데이터를 지울까요?")) { delete data[key()]; save(); renderSaved(); } };
+function renderSaved() {
+  const h = data[key()] || {};
+  const f = p => p ? `저장됨 (±${p.acc}m)` : "미저장";
+  $("#savedInfo").innerHTML = `<b>${key()}번 홀</b> · 티: ${f(h.tee)} · 낙하지점: ${f(h.target)} · 그린: ${f(h.green)}<br>해저드: ${(h.hazards||[]).map(z=>z.name).join(", ") || "없음"}`;
+}
+
+/* 내보내기 / 불러오기 */
+$("#exportBtn").onclick = () => { $("#json").value = JSON.stringify(data, null, 1); $("#modal").classList.add("on"); };
+$("#closeBtn").onclick = () => $("#modal").classList.remove("on");
+$("#copyBtn").onclick = async () => { try { await navigator.clipboard.writeText($("#json").value); toast("복사했습니다"); } catch { $("#json").select(); } };
+$("#importBtn").onclick = () => {
+  try { data = JSON.parse($("#json").value); save(); renderSaved(); toast("불러오기 완료"); $("#modal").classList.remove("on"); }
+  catch { toast("JSON 형식이 올바르지 않습니다"); }
+};
+
+/* ===== 데모 ===== */
+$("#demoBtn").onclick = () => {
+  if (!pos || heading == null) return toast("GPS와 방향 센서를 기다리는 중입니다");
+  const h = (heading + +$("#offset").value + 360) % 360;
+  demo = { tee: { ...pos }, target: dest(pos, h, 180), green: dest(pos, h, 330),
+           hazards: [{ name: "오른쪽 벙커", ...dest(pos, h + 12, 150) }, { name: "왼쪽 연못", ...dest(pos, h - 18, 230) }] };
+  toast("가상 홀을 만들었습니다. 정면을 비춰 보세요");
+};
+
+/* ===== AR 그리기 ===== */
+function project(p) {
+  const d = dist(pos, p), rel = norm(bearing(pos, p) - heading - +$("#offset").value);
+  const down = deg(Math.atan(EYE_H / Math.max(d, 1)));          // 지면 지점은 수평선 아래
+  const x = cv.width / 2 + (rel / H_FOV) * cv.width;
+  const y = cv.height / 2 + ((pitch + down) / V_FOV) * cv.height;
+  return { x, y, d, rel, on: Math.abs(rel) < H_FOV / 2 + 5 };
+}
+let dash = 0;
+function laser(x, y, color) {
+  const sx = cv.width / 2, sy = cv.height;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.strokeStyle = color; ctx.globalAlpha = .25; ctx.lineWidth = 18; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(x, y); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.lineWidth = 4; ctx.setLineDash([18, 12]); ctx.lineDashOffset = -dash;
+  ctx.shadowColor = color; ctx.shadowBlur = 16; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(x, y); ctx.stroke();
+  ctx.restore();
+}
+function marker(pt, label, color, icon) {
+  ctx.save();
+  ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 14;
+  ctx.beginPath(); ctx.arc(pt.x, pt.y, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0; ctx.font = "bold 15px sans-serif"; ctx.textAlign = "center";
+  const txt = `${icon} ${label} ${Math.round(pt.d)}m`, w = ctx.measureText(txt).width + 16;
+  ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(pt.x - w/2, pt.y - 42, w, 26);
+  ctx.fillStyle = "#fff"; ctx.fillText(txt, pt.x, pt.y - 24);
+  ctx.restore();
+}
+function edgeArrow(pt, label, color) {
+  const left = pt.rel < 0, x = left ? 28 : cv.width - 28, y = cv.height * 0.45;
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath();
+  if (left) { ctx.moveTo(x - 14, y); ctx.lineTo(x + 6, y - 12); ctx.lineTo(x + 6, y + 12); }
+  else { ctx.moveTo(x + 14, y); ctx.lineTo(x - 6, y - 12); ctx.lineTo(x - 6, y + 12); }
+  ctx.fill(); ctx.font = "12px sans-serif"; ctx.textAlign = left ? "left" : "right";
+  ctx.fillStyle = "#fff"; ctx.fillText(`${label} ${Math.round(pt.d)}m`, left ? 8 : cv.width - 8, y + 28);
+  ctx.restore();
+}
+function frame() {
+  if (cv.width !== innerWidth || cv.height !== innerHeight) { cv.width = innerWidth; cv.height = innerHeight; }
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  dash = (dash + 1.2) % 30;
+  const h = mode === "demo" ? demo : data[key()];
+  const chips = [];
+  if (pos && heading != null && h && mode !== "rec") {
+    const items = [];
+    (h.hazards || []).forEach(z => items.push({ p: z, label: z.name, color: "#ff4d4d", icon: "⚠", cls: "r" }));
+    if (h.green) items.push({ p: h.green, label: "그린", color: "#ffd24d", icon: "⛳", cls: "y" });
+    if (h.target) items.push({ p: h.target, label: "공략 지점", color: "#2ee66b", icon: "🎯", cls: "g", laser: true });
+    items.forEach(it => {
+      const pt = project(it.p);
+      chips.push(`<div class="chip ${it.cls}">${it.label}<b>${Math.round(pt.d)}m</b></div>`);
+      if (pt.on) { if (it.laser) laser(pt.x, pt.y, it.color); marker(pt, it.label, it.color, it.icon); }
+      else edgeArrow(pt, it.label, it.color);
+    });
+    if (pos.acc > 15) chips.push(`<div class="chip">⚠ GPS 오차가 큽니다(±${Math.round(pos.acc)}m)</div>`);
+  } else if (mode === "ar") {
+    chips.push(`<div class="chip">${!pos ? "GPS 수신 중…" : heading == null ? "방향 센서 대기 중…" : "이 홀의 코스 데이터가 없습니다 → [기록]에서 저장하세요"}</div>`);
+  }
+  $("#dist").innerHTML = mode === "rec" ? "" : chips.join("");
+  requestAnimationFrame(frame);
+}
+
+/* ===== 공통 ===== */
+let tt;
+function toast(m, ms = 2000) { const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(tt); tt = setTimeout(() => t.style.display = "none", ms); }
+fillSelects();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- AR 코스 가이드 (고객용): 지도 핀 안에 솔메이트 소나무 마스코트 -->
+  <path d="M32 4
+           C46 4 56 14.5 56 27
+           C56 42 38 56 32 60
+           C26 56 8 42 8 27
+           C8 14.5 18 4 32 4 Z" fill="#184D37"/>
+  <circle cx="32" cy="27" r="18" fill="#FFFFFF"/>
+
+  <!-- mini pine mascot, matching app icon style -->
+  <path d="M32 15
+           C38 15 41 19.5 39.5 23.5
+           C42 24.7 44 27.5 43 30.5
+           C47 32 48.5 35.5 47 38.5
+           C45.8 41 43 42 39.5 42
+           L24.5 42
+           C21 42 18.2 41 17 38.5
+           C15.5 35.5 17 32 21 30.5
+           C20 27.5 22 24.7 24.5 23.5
+           C23 19.5 26 15 32 15 Z" fill="#2F7A54"/>
+  <rect x="27.5" y="42" width="9" height="6" rx="2.5" fill="#8B5E3C"/>
+
+  <!-- tiny "AR" badge -->
+  <circle cx="46" cy="46" r="11" fill="#184D37" stroke="#FFFFFF" stroke-width="2.5"/>
+  <text x="46" y="50.5" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle">AR</text>
+</svg>
