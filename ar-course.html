@@ -199,21 +199,29 @@ function onOri(e) {
 }
 $("#offset").oninput = e => $("#offVal").textContent = e.target.value + "°";
 
-/* ===== 기록 모드: 5초간 GPS 평균으로 저장 ===== */
+/* ===== 기록 모드: 5초간 GPS 평균으로 저장 =====
+   주의: 메인 GPS watch(#go에서 시작, pos 변수 갱신)가 이미 돌고 있는 상태에서
+   여기서 또 navigator.geolocation.watchPosition()을 새로 열면, 기기에 따라
+   (특히 안드로이드 TWA 웹뷰) 두 번째 고정밀 watch의 콜백이 전혀 호출되지 않아
+   버튼이 눌러도 아무 반응이 없는 것처럼 보이는 경우가 있다.
+   그래서 새 watch를 열지 않고 이미 갱신되고 있는 pos를 주기적으로 샘플링한다. */
 function sample(sec = 5) {
   return new Promise((ok, no) => {
-    const pts = [], t0 = Date.now();
-    const id = navigator.geolocation.watchPosition(p => {
-      if (p.coords.accuracy <= 25) pts.push(p.coords);
-      const left = sec - Math.floor((Date.now() - t0) / 1000);
-      toast(`위치 측정 중… ${Math.max(left,0)}초 (가만히 서 주세요)`, 1200);
-      if (Date.now() - t0 > sec * 1000) {
-        navigator.geolocation.clearWatch(id);
-        if (!pts.length) return no(new Error("GPS 정확도가 낮습니다. 하늘이 트인 곳에서 다시 시도하세요."));
-        ok({ lat: pts.reduce((s,c)=>s+c.latitude,0)/pts.length, lng: pts.reduce((s,c)=>s+c.longitude,0)/pts.length,
-             acc: Math.round(pts.reduce((s,c)=>s+c.accuracy,0)/pts.length) });
-      }
-    }, e => no(e), { enableHighAccuracy: true, maximumAge: 0 });
+    if (!pos) return no(new Error("GPS 수신 대기 중입니다. 하늘이 트인 곳에서 잠시 후 다시 시도하세요."));
+    const pts = [];
+    let left = sec;
+    toast(`위치 측정 중… ${left}초 (가만히 서 주세요)`, 1200);
+    const sampleIv = setInterval(() => { if (pos && pos.acc <= 25) pts.push(pos); }, 500);
+    const tickIv = setInterval(() => {
+      left -= 1;
+      if (left > 0) toast(`위치 측정 중… ${left}초 (가만히 서 주세요)`, 1200);
+    }, 1000);
+    setTimeout(() => {
+      clearInterval(sampleIv); clearInterval(tickIv);
+      if (!pts.length) return no(new Error("GPS 정확도가 낮습니다. 하늘이 트인 곳에서 다시 시도하세요."));
+      ok({ lat: pts.reduce((s,c)=>s+c.lat,0)/pts.length, lng: pts.reduce((s,c)=>s+c.lng,0)/pts.length,
+           acc: Math.round(pts.reduce((s,c)=>s+c.acc,0)/pts.length) });
+    }, sec * 1000);
   });
 }
 document.querySelectorAll("[data-save]").forEach(b => b.onclick = async () => {
@@ -225,7 +233,7 @@ document.querySelectorAll("[data-save]").forEach(b => b.onclick = async () => {
     const h = hole();
     if (t === "hazard") h.hazards.push({ name, ...p }); else h[t] = p;
     save(); renderSaved(); toast(`저장 완료 (오차 ±${p.acc}m)`);
-  } catch (e) { toast(e.message, 3000); }
+  } catch (e) { toast(e && e.message ? e.message : "저장에 실패했습니다. 다시 시도해 주세요.", 3000); }
 });
 $("#clearHole").onclick = () => { if (confirm("이 홀의 저장 데이터를 지울까요?")) { delete data[key()]; save(); renderSaved(); } };
 function renderSaved() {
