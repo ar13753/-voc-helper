@@ -167,7 +167,9 @@ $("#go").onclick = async () => {
   else addEventListener("deviceorientation", onOri);
   navigator.geolocation.watchPosition(p => {
     pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy };
-    $("#gpsS").textContent = `GPS 오차 ±${Math.round(pos.acc)}m`;
+    $("#gpsS").textContent = pos.acc > 100
+      ? `⚠ 대략적인 위치만 잡힘(±${Math.round(pos.acc)}m) · '정확한 위치' 권한을 켜세요`
+      : `GPS 오차 ±${Math.round(pos.acc)}m`;
   }, e => $("#gpsS").textContent = "GPS 오류: " + e.message, { enableHighAccuracy: true, maximumAge: 1000 });
   $("#start").style.display = "none";
 };
@@ -211,7 +213,8 @@ function sample(sec = 5) {
         return ok({ lat: pts.reduce((s,c)=>s+c.latitude,0)/pts.length, lng: pts.reduce((s,c)=>s+c.longitude,0)/pts.length,
                     acc: Math.round(pts.reduce((s,c)=>s+c.accuracy,0)/pts.length) });
       }
-      if (pos) return ok({ lat: pos.lat, lng: pos.lng, acc: Math.round(pos.acc) });
+      if (pos && pos.acc <= 30) return ok({ lat: pos.lat, lng: pos.lng, acc: Math.round(pos.acc) });
+      if (pos) return no(new Error(`위치 오차가 ±${Math.round(pos.acc)}m로 너무 큽니다. 휴대폰 설정에서 이 앱의 '정확한 위치 사용'을 켜고 실외에서 다시 시도하세요.`));
       if (lastErr && lastErr.code === 1) return no(new Error("위치 권한이 꺼져 있습니다. 설정에서 이 앱(또는 Chrome)의 위치 권한을 허용해 주세요."));
       no(new Error("GPS 신호가 없습니다. 하늘이 트인 곳에서 다시 시도해 주세요."));
     }
