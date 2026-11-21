@@ -2371,8 +2371,8 @@ window.VocHelper = (function(){
     return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
   }
 
-  var careDateFrom = todayDateStr(0);
-  var careDateTo = todayDateStr(0);
+  var careDateFrom = "";
+  var careDateTo = "";
   function dateStrFromTs(ts){
     var d = new Date(ts);
     function p(n){ return (n<10?"0":"") + n; }
@@ -2540,7 +2540,8 @@ window.VocHelper = (function(){
   function renderCareFeed(){
     var list = careCache.filter(function(p){
       var d = dateStrFromTs(p.ts);
-      if(d < careDateFrom || d > careDateTo) return false;
+      if(careDateFrom && d < careDateFrom) return false;
+      if(careDateTo && d > careDateTo) return false;
       if(careFilter === "ALL") return true;
       return p.course === careFilter || p.course === "공통";
     });
@@ -2551,7 +2552,11 @@ window.VocHelper = (function(){
     });
     var today = todayDateStr(0);
     var isTodayOnly = careDateFrom === today && careDateTo === today;
-    var rangeLabel = isTodayOnly ? "오늘" : (careDateFrom === careDateTo ? careDateFrom : (careDateFrom + " ~ " + careDateTo));
+    var rangeLabel;
+    if(isTodayOnly) rangeLabel = "오늘";
+    else if(!careDateFrom && !careDateTo) rangeLabel = "전체";
+    else if(careDateFrom && careDateTo && careDateFrom === careDateTo) rangeLabel = careDateFrom;
+    else rangeLabel = (careDateFrom || "처음") + " ~ " + (careDateTo || "지금");
     $("careFeed").innerHTML = list.length === 0
       ? '<p class="muted">' + rangeLabel + ' 기간에 등록된 케어 공지가 없습니다.</p>'
       : list.map(careCardHtml).join("");
@@ -2569,16 +2574,16 @@ window.VocHelper = (function(){
   $("careDateToInput").value = careDateTo;
   $("careDateToInput").max = todayDateStr(0);
   $("careDateFromInput").addEventListener("change", function(){
-    careDateFrom = this.value || todayDateStr(0);
-    if(careDateFrom > careDateTo){
+    careDateFrom = this.value;
+    if(careDateFrom && careDateTo && careDateFrom > careDateTo){
       careDateTo = careDateFrom;
       $("careDateToInput").value = careDateTo;
     }
     renderCareFeed();
   });
   $("careDateToInput").addEventListener("change", function(){
-    careDateTo = this.value || todayDateStr(0);
-    if(careDateTo < careDateFrom){
+    careDateTo = this.value;
+    if(careDateFrom && careDateTo && careDateTo < careDateFrom){
       careDateFrom = careDateTo;
       $("careDateFromInput").value = careDateFrom;
     }
